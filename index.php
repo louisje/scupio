@@ -42,7 +42,7 @@ $(function() {
   
   if (typeof window.__scupioecCookieChannel != 'undefined') {
     var channels = window.__scupioecCookieChannel;
-    if (channels.lenght == 0) {
+    if (channels.length == 0) {
       $('#container').text('No Data');
       return;
     }
@@ -61,6 +61,7 @@ $(function() {
 </script>
 </head>
 <body>
+<h4>跟據 SCUPIO 資料顯示你喜歡</h4>
 <div id="container">Loading ...</div>
 </body>
 </html>
