@@ -1,10 +1,41 @@
 <html>
 <head>
+<!-- Update your html tag to include the itemscope and itemtype attributes -->
+<html itemscope itemtype="http://schema.org/Analyze">
+
+<!-- Google+ Sharing meta data -->
+<meta itemprop="name" content="Analyze Your Web Trend with SCUPIO"/>
+<meta itemprop="description" content="According to what web sites you have visited"/>
+<meta itemprop="image" content="http://www.realtytrac.com/Home-Resources/Images/AnalyzeForeclosureTrends.jpg"/>
+
+<!-- FB Sharing meta data -->
+<meta name="title" content="Analyze Your Web Trend with SCUPIO"/>
+<meta name="description" content="According to what web sites you have visited"/>
+<link rel="image_src" href="http://www.realtytrac.com/Home-Resources/Images/AnalyzeForeclosureTrends.jpg"/>
+
+<!-- OpenGraph meta data -->
+<meta property="og:title" content="Analyze Your Web Trend with SCUPIO"/>
+<meta property="og:description" content="According to what web sites you have visited"/>
+<meta property="og:image" content="http://www.realtytrac.com/Home-Resources/Images/AnalyzeForeclosureTrends.jpg"/>
+
 <link type="text/css" rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/start/jquery-ui.css"/>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.0/jquery.js"></script>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.js"></script>
 <script type="text/javascript" src='http://rec.scupio.com/recweb/rec.aspx?act=cc'></script>
 <script type="text/javascript" src="webtoolkit.sprintf.js"></script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-27493799-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
 <script type="text/javascript">
 $(function() {
   var categories = {
@@ -63,5 +94,21 @@ $(function() {
 <body>
 <h4>跟據 SCUPIO 資料顯示你喜歡</h4>
 <div id="container">Loading ...</div>
+<br/>
+
+<!-- 將此標記放在您想要顯示 +1 按鈕的位置 -->
+<g:plusone size="tall"></g:plusone>
+
+<!-- 將此顯示呼叫 (render call) 放在適當位置 -->
+<script type="text/javascript">
+  window.___gcfg = {lang: 'zh-TW'};
+
+  (function() {
+    var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+    po.src = 'https://apis.google.com/js/plusone.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+  })();
+</script>
+
 </body>
 </html>
