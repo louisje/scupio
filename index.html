@@ -1,5 +1,6 @@
 <html>
 <head>
+<title>SCUPIO Analytics Report</title>
 <!-- Update your html tag to include the itemscope and itemtype attributes -->
 <html itemscope itemtype="http://schema.org/Analyze">
 
@@ -109,6 +110,19 @@ $(function() {
     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
   })();
 </script>
+
+<!-- Piwik --> 
+<script type="text/javascript">
+var pkBaseURL = (("https:" == document.location.protocol) ? "https://teltel.co.cc/piwik/" : "http://teltel.co.cc/piwik/");
+document.write(unescape("%3Cscript src='" + pkBaseURL + "piwik.js' type='text/javascript'%3E%3C/script%3E"));
+</script><script type="text/javascript">
+try {
+var piwikTracker = Piwik.getTracker(pkBaseURL + "piwik.php", 1);
+piwikTracker.trackPageView();
+piwikTracker.enableLinkTracking();
+} catch( err ) {}
+</script><noscript><p><img src="http://teltel.co.cc/piwik/piwik.php?idsite=1" style="border:0" alt="" /></p></noscript>
+<!-- End Piwik Tracking Code -->
 
 </body>
 </html>
