@@ -1,7 +1,16 @@
 
 .widget {
-	width: 510px;
 	float: left;
 	margin: 5px;
+}
+
+.lcd_screen {
+	background-color: #8a8;
+}
+
+#remote_display {
+	width:   100%;
+	height:  100px;
+	padding: 3px;
 }
 
