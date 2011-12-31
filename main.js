@@ -125,7 +125,7 @@ var youtube = {
 			if (y$.watched.length > 100) {
 				y$.watched.shift();
 			}
-			$.cookie('watched', y$.watched.join(',')/*, { expires: 30 }*/);
+			$.cookie('watched', y$.watched.join(','), { /*, expires: 30*/ });
 			log('set to watched: ' + videoId);
 		}
 	},
@@ -186,6 +186,7 @@ var youtube = {
 			$('#player_holder').text('Play list is empty or watched');
 			return;
 		}
+		log('play list count = ' + y$.queued.length);
 		
 		var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), 'playlist', y$.queued.join(','));
 		log(url);
