@@ -1,7 +1,10 @@
 
-var log = function(text) {
+var log = function(text, remote) {
 	if (window.console && console.log)
 		console.log(text);
+	if (remote) {
+		$('#remote_display').text(text);
+	}
 };
 
 var scupio = {
@@ -122,17 +125,19 @@ var youtube = {
 		
 		if ($.inArray(videoId, y$.watched) == -1) {
 			y$.watched.push(videoId);
-			if (y$.watched.length > 100) {
+			if (y$.watched.length > 300) {
 				y$.watched.shift();
 			}
-			$.cookie('watched', y$.watched.join(','), { /*, expires: 30*/ });
+			$.cookie('watched', y$.watched.join(','), { expires: 300 });
 			log('set to watched: ' + videoId);
 		}
 	},
-	onReady: function() {
+	onPlayerReady: function(playlist) {
 		
 		log('youtube player is ready');
+		log(playlist, true);
 		
+		y$.player.playVideo();
 	},
 	onStateChange: function(state) {
 		//log('state change to ' + state);
@@ -140,6 +145,13 @@ var youtube = {
 			
 			case -1: // unstart
 			y$.buffering = 0;
+			/*
+			var videoId = y$.player.getVideoUrl().match(/v=([^&]+)/)[1];
+			var url = 'http://gdata.youtube.com/feeds/api/videos/' + videoId + '?v=2&alt=json-in-script&callback=?';
+			$.get(url, function(data) {
+				log(data.entry.title.$t, true);
+			}, 'json');
+			*/
 			break;
 			
 			case 0: // ended
@@ -154,7 +166,7 @@ var youtube = {
 			break;
 			
 			case 3: // buffering
-			if (y$buffering > 0)
+			if (y$.buffering > 0)
 				log('buffering ... ');
 			y$.buffering++;
 			break;
@@ -169,7 +181,7 @@ var youtube = {
 		log(error);
 	},
 	onEntryListFetched: function(feed) {
-		if (y$.queued.length < 30 && feed.link.length > 0) {
+		if (y$.queued.length < 50 && feed.link.length > 0) {
 			for (var i = 0; i < feed.link.length; i++) {
 				var link = feed.link[i];
 				if (link.rel == 'next') {
@@ -188,7 +200,7 @@ var youtube = {
 		}
 		log('play list count = ' + y$.queued.length);
 		
-		var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), 'playlist', y$.queued.join(','));
+		var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent('YouTube Taiwan Most Recent'), y$.queued.join(','));
 		log(url);
 		var param = {
 			allowFullScreen:   true,
@@ -196,6 +208,7 @@ var youtube = {
 		};
 		var attr = { 'id': 'ytplayer' };
 		swfobject.embedSWF(url, 'player_holder', 640, 360, '11', null, null, param, attr);
+		//this.onReady();
 	},
 	fetchEntryList: function(url) {
 		url += '&callback=?';
@@ -206,7 +219,7 @@ var youtube = {
 			var entries = feed.entry;
 			log(data);
 			
-			for (var i = 0; i < entries.length; i++) {
+			for (var i = 0; i < entries.length && y$.queued.length < 50; i++) {
 				var videoId = entries[i].media$group.yt$videoid.$t;
 				if ($.inArray(videoId, y$.watched) == -1) {
 					y$.queued.push(videoId);
@@ -232,7 +245,7 @@ var youtube = {
 };
 
 var y$ = youtube;
-var onYouTubePlayerReady = function(videoId) {
+var onYouTubePlayerReady = function(playlist) {
 	
 	y$.player = $('#ytplayer').get(0);
 	var yt = 'y$.';
@@ -240,14 +253,16 @@ var onYouTubePlayerReady = function(videoId) {
 	y$.player.addEventListener('onPlaybackQualityChange', 'y$.onPlaybackQualityChange');
 	y$.player.addEventListener('onStateChange', 'y$.onStateChange');
 	y$.player.addEventListener('onError', 'y$.onError');
-	y$.player.addEventListener('onReady', 'y$.onReady');
+	//y$.player.addEventListener('onReady', 'y$.onReady');
 	
-	y$.onPlayerReady(data);
+	y$.onPlayerReady(decodeURIComponent(playlist));
 };
 
 $(function() {
 	
 	scupio.init();
 	browserDetection.init();
-	youtube.init();
+	$('#btn_power').button().click(function() {
+		youtube.init();
+	});
 });

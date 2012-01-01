@@ -6,11 +6,28 @@
 
 .lcd_screen {
 	background-color: #8a8;
+	font-size: small;
 }
 
 #remote_display {
-	width:   100%;
-	height:  100px;
-	padding: 3px;
+	width:    100%;
+	height:   100px;
+	padding:  5px;
+	overflow: hidden;
 }
 
+#player_holder {
+	width:            640px;
+	height:           360px;
+	color:            grey;
+	background-color: black;
+	text-align:       center;
+	top: 50%;
+	position: relative;
+	border: 1px black solid;
+}
+
+#player_holder div {
+	top: 50%;
+	position: relative;
+}
