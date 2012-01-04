@@ -138,6 +138,7 @@ var youtube = {
 		log(playlist, true);
 		
 		y$.player.playVideo();
+	
 	},
 	onStateChange: function(state) {
 		//log('state change to ' + state);
@@ -160,6 +161,7 @@ var youtube = {
 			case 1: // playing
 			var videoId = y$.player.getVideoUrl().match(/v=([^&]+)/)[1];
 			y$.setVideoWatched(videoId);
+			$('#black_screen').hide('slow');
 			break;
 			
 			case 2: // pause
@@ -195,7 +197,7 @@ var youtube = {
 	cuePlaylist: function() {
 		if (y$.queued.length == 0) {
 			log('playlist is empty!');
-			$('#player_holder').text('Play list is empty or watched');
+			$('#player_screen').text('Play list is empty or watched');
 			return;
 		}
 		log('play list count = ' + y$.queued.length);
@@ -204,10 +206,11 @@ var youtube = {
 		log(url);
 		var param = {
 			allowFullScreen:   true,
-			allowScriptAccess: "always"
+			allowScriptAccess: 'always',
+			wmode:             'Opaque'
 		};
 		var attr = { 'id': 'ytplayer' };
-		swfobject.embedSWF(url, 'player_holder', 640, 360, '11', null, null, param, attr);
+		swfobject.embedSWF(url, 'player_screen', 640, 360, '11', null, null, param, attr);
 		//this.onReady();
 	},
 	fetchEntryList: function(url) {
@@ -247,8 +250,15 @@ var youtube = {
 var y$ = youtube;
 var onYouTubePlayerReady = function(playlist) {
 	
+	log('flash player is ready');
+	
 	y$.player = $('#ytplayer').get(0);
 	var yt = 'y$.';
+	
+	$('#btn_power').click(function() {
+		y$.player.stopVideo();
+		$('#black_screen').html('<div><h2>電源已關閉</h2></html>').show('slow');
+	});
 	
 	y$.player.addEventListener('onPlaybackQualityChange', 'y$.onPlaybackQualityChange');
 	y$.player.addEventListener('onStateChange', 'y$.onStateChange');
@@ -263,6 +273,13 @@ $(function() {
 	scupio.init();
 	browserDetection.init();
 	$('#btn_power').button().click(function() {
+		var pos = $('#player_screen').position();
+		$('#black_screen')
+		  .css('top', pos.top)
+		  .css('left', pos.left)
+		  .html('<div><h2>電源開啟中</h2></div>')
+		  .show();
 		youtube.init();
+		$('#btn_power').unbind('click');
 	});
 });

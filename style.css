@@ -16,9 +16,9 @@
 	overflow: hidden;
 }
 
-#player_holder {
-	width:            640px;
-	height:           360px;
+#player_screen, #black_screen {
+	width:            638px;
+	height:           358px;
 	color:            grey;
 	background-color: black;
 	text-align:       center;
@@ -27,7 +27,11 @@
 	border: 1px black solid;
 }
 
-#player_holder div {
+#black_screen {
+	position: absolute;
+}
+
+#player_screen div, #black_screen div {
 	top: 50%;
 	position: relative;
 }
