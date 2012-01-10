@@ -282,4 +282,9 @@ $(function() {
 		youtube.init();
 		$('#btn_power').unbind('click');
 	});
+	
+	log('navigator.language = ' + navigator.language);
+	log('navigator.browserLanguage = ' + navigator.browserLanguage);
+	log('navigator.systemLanguage = ' + navigator.systemLanguage);
+	log('navigator.userLanguage = ' + navigator.userLanguage);
 });
