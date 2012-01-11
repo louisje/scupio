@@ -16,7 +16,7 @@
 	overflow: hidden;
 }
 
-#player_screen, #black_screen {
+#ytplayer, #black_screen {
 	width:            638px;
 	height:           358px;
 	color:            grey;
@@ -31,7 +31,9 @@
 	position: absolute;
 }
 
-#player_screen div, #black_screen div {
+#ytplayer div, #black_screen div {
 	top: 50%;
 	position: relative;
+	background-color: black;
 }
+

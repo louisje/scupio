@@ -121,6 +121,12 @@ var youtube = {
 	watched: [],
 	player:  null,
 	buffering: 0,
+	getCurrentVideoId: function() {
+		if (y$.player) {
+			return y$.player.getVideoUrl().match(/v=([^&]+)/)[1];
+		}
+		return null;
+	},
 	setVideoWatched: function(videoId) {
 		
 		if ($.inArray(videoId, y$.watched) == -1) {
@@ -156,10 +162,11 @@ var youtube = {
 			break;
 			
 			case 0: // ended
+			log('the end');
 			break;
 			
 			case 1: // playing
-			var videoId = y$.player.getVideoUrl().match(/v=([^&]+)/)[1];
+			var videoId = y$.getCurrentVideoId();
 			y$.setVideoWatched(videoId);
 			$('#black_screen').hide('slow');
 			break;
@@ -191,18 +198,23 @@ var youtube = {
 				}
 			}
 		}
+		var thumbnail = feed.media$group.media$thumbnail[1].url;
+		$('#black_screen')
+		  .css('background-image', 'url(' + thumbnail + ')')
+		  .css('background-position', 'center')
+		  .css('background-repeat', 'no-repeat');
 		
-		y$.cuePlaylist();
+		y$.cuePlaylist(feed.title.$t);
 	},
-	cuePlaylist: function() {
+	cuePlaylist: function(title) {
 		if (y$.queued.length == 0) {
-			log('playlist is empty!');
-			$('#player_screen').text('Play list is empty or watched');
+			log('本台已全部播完', true);
+			$('#black_screen').html('<div><h2>本台已全部播完</h2></div>');
 			return;
 		}
 		log('play list count = ' + y$.queued.length);
 		
-		var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent('YouTube Taiwan Most Recent'), y$.queued.join(','));
+		var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent(title), y$.queued.join(','));
 		log(url);
 		var param = {
 			allowFullScreen:   true,
@@ -210,7 +222,7 @@ var youtube = {
 			wmode:             'Opaque'
 		};
 		var attr = { 'id': 'ytplayer' };
-		swfobject.embedSWF(url, 'player_screen', 640, 360, '11', null, null, param, attr);
+		swfobject.embedSWF(url, 'ytplayer', 640, 360, '11', null, null, param, attr);
 		//this.onReady();
 	},
 	fetchEntryList: function(url) {
@@ -242,12 +254,22 @@ var youtube = {
 		}
 		log('watched list count = ' + y$.watched.length);
 		
-		var url = 'http://gdata.youtube.com/feeds/api/standardfeeds/TW/most_recent?v=2&alt=json-in-script&max-results=50';
+		if (!tubeUrls.length) {
+			log('no tube url!');
+		}
+		var url = tubeUrls.shift();
+		log('tube url = ' + url);
+		tubeUrls.push(url);
+		y$.queued = [ ];
+		//var url = 'http://gdata.youtube.com/feeds/api/standardfeeds/TW/most_recent?v=2&alt=json-in-script&max-results=50';
+		//var url = 'http://gdata.youtube.com/feeds/api/users/ttvnewsview/uploads?v=2&alt=json-in-script&max-results=50';
 		y$.fetchEntryList(url);
 	}
 };
 
+var tubeUrls = [ ];
 var y$ = youtube;
+
 var onYouTubePlayerReady = function(playlist) {
 	
 	log('flash player is ready');
@@ -272,19 +294,51 @@ $(function() {
 	
 	scupio.init();
 	browserDetection.init();
-	$('#btn_power').button().click(function() {
-		var pos = $('#player_screen').position();
+	
+	var tubeSource = 'http://gdata.youtube.com/feeds/api/users/louisje/playlists?alt=json-in-script&v=2&max-results=9&callback=?';
+	
+	$('button').button();
+	
+	$('#btn_power').click(function() {
+		var pos = $('#ytplayer').position();
 		$('#black_screen')
 		  .css('top', pos.top)
 		  .css('left', pos.left)
 		  .html('<div><h2>電源開啟中</h2></div>')
 		  .show();
-		youtube.init();
 		$('#btn_power').unbind('click');
+		$.get(tubeSource, function(data) {
+			var entries = data.feed.entry;
+			for (var i = 0; i < entries.length; i++) {
+				var url = entries[i].content.src + '&alt=json-in-script&max-results=50';
+				tubeUrls.push(url);
+			}
+			youtube.init();
+		}, 'json');
 	});
 	
-	log('navigator.language = ' + navigator.language);
-	log('navigator.browserLanguage = ' + navigator.browserLanguage);
-	log('navigator.systemLanguage = ' + navigator.systemLanguage);
-	log('navigator.userLanguage = ' + navigator.userLanguage);
+	$('#btn_next').click(function() {
+		if (y$.player) {
+			y$.player.stopVideo();
+		}
+		$('#black_screen').text('').show();
+		youtube.init();
+	});
+	
+	$('#btn_mute').click(function() {
+		if (y$.player) {
+			if (y$.player.isMuted()) {
+				y$.player.unMute();
+				log('取消靜音', true);
+			} else {
+				y$.player.mute();
+				log('靜音', true);
+			}
+		}
+	});
+	
+	//log('navigator.language = ' + navigator.language);
+	//log('navigator.browserLanguage = ' + navigator.browserLanguage);
+	//log('navigator.systemLanguage = ' + navigator.systemLanguage);
+	//log('navigator.userLanguage = ' + navigator.userLanguage);
 });
