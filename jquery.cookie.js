@@ -18,8 +18,8 @@ jQuery.cookie = function (key, value, options) {
         }
 
         if (typeof options.expires === 'number') {
-            var minutes = options.expires, t = new Date();
-            options.expires = new Date(t.getTime() + minutes * 1000 * 60);
+            var days = options.expires, t = options.expires = new Date();
+            t.setDate(t.getDate() + days);  
         }
 
         value = String(value);
