@@ -43,32 +43,28 @@
 </script>
 </head>
 <body>
-<div class="widget" style="width:675px">
+<div class="widget" style="width:755px">
   <fieldset>
     <legend>電視機</legend>
-    <div id="ytplayer"><div><h2>請開啟電源</h2></div></div>
-    <div id="black_screen" style="display:none"><div><h2>電源開啟中</h2></div></div>
+    <div id="ytplayer"><div><h2>按“下一台”啟動</h2></div></div>
+    <div id="black_screen" style="display:none"><div><h2>啟動中</h2></div></div>
+    <div id="control_panel" class="ui-widget-header ui-corner-all">
+      <div id="lcd_screen" class="ui-widget">按“下一台”啟動</div>
+      <button id="btn_mute"><small>靜音</small></button>
+      <button id="btn_louder"><small>大聲</small></button>
+      <button id="btn_lower"><small>小聲</small></button>
+      <button id="btn_next"><small>下一台</small></button>
+    </div>
   </fieldset>
 </div>
-<div class="widget" style="width:280px">
-  <fieldset>
-    <legend>遙控器</legend>
-    <div class="lcd_screen" style="margin-bottom:10px"><div id="remote_display">電源關閉</div></div>
-    <button id="btn_mute">靜音</button>
-    <button id="btn_louder">大聲</button>
-    <button id="btn_lower">小聲</button>
-    <button id="btn_power">電源</button>
-    <button id="btn_next">換台</button>
-    <button id="btn_next">全屏</button>
-  </fieldset>
-</div>
+<div style="clear:both;height:10px"></div>
 <div class="widget" style="width:480px">
   <fieldset>
     <legend>跟據 SCUPIO 資料顯示你喜歡</legend>
     <div id="container">Loading ...</div>
   </fieldset>
 </div>
-<div class="widget" style="width:280px">
+<div class="widget" style="width:265px">
   <fieldset>
     <legend>Misc.</legend>
     
