@@ -5,7 +5,7 @@
 }
 
 #lcd_screen {
-	width:       300px;
+	width:       365px;
 	height:      20px;
 	padding:     5px;
 	overflow:    hidden;
@@ -27,7 +27,7 @@ button {
 
 #ytplayer, #black_screen {
 	width:            720px;
-	height:           450px;
+	height:           405px;
 	color:            #888;
 	background-color: black;
 	text-align:       center;

@@ -119,67 +119,86 @@ var browserDetection = {
 // TODO: the power button
 // TODO: queuedTubes
 // TODO: watchedTube url --> playlist_id
-// TODO: piwik
+// TODO: analytics
 
 var y$ = {
-	queued:       [ ],
-	watched:      [ ],
-	watchedTubes: [ ],
-	player:       null,
-	currentTube:  null,
-	buffering:    0,
-	initializing: false,
-	maxVideos:    15,
-	maxTubes:     35,
-	minTubes:     25,
+	curator:         'louisje',
+	tubes:           [ ],
+	queued:          [ ],
+	watched:         [ ],
+	watchedTubes:    [ ],
+	player:          null,
+	currentTube:     null,
+	volume:          50,
+	buffering:       0,
+	initializing:    false,
+	maxVideos:       15,
+	maxTubes:        35,
+	minTubes:        25,
+	maxWatchedTubes: 200,
+	maxWatched:      200,
 	getCurrentVideoId: function() {
 		if (y$.player) {
 			return y$.player.getVideoUrl().match(/v=([^&]+)/)[1];
 		}
 		return null;
 	},
-	setTubeWatched: function(tubeUrl) {
+	setTubeWatched: function(tube) {
 		
-		if ($.inArray(tubeUrl, y$.watchedTubes) == -1) {
-			y$.watchedTubes.push(tubeUrl);
-			if (y$.watchedTubes.length > 40) {
+		if ($.inArray(tube, y$.watchedTubes) == -1) {
+			y$.watchedTubes.push(tube);
+			if (y$.watchedTubes.length > y$.maxWatchedTubes) {
 				y$.watchedTubes.shift();
 			}
 			$.cookie('watchedTubes', y$.watchedTubes.join(','), { expires: 7 });
 		}
-		var newTubeUrls = [ ];
-		while (tubeUrls.length > 0) {
-			var url = tubeUrls.shift();
-			if (url != tubeUrl)
-				newTubeUrls.push(url);
+		var newTubes = [ ];
+		while (y$.tubes.length > 0) {
+			var url = y$.tubes.shift();
+			if (url != tube)
+				newTubes.push(url);
 		}
-		tubeUrls = newTubeUrls;
-		if (tubeUrls.length < y$.minTubes) {
+		y$.tubes = newTubes;
+		if (y$.tubes.length < y$.minTubes) {
 			log('fetch more tubes');
-			y$.fetchTubeList(tubeSource);
+			y$.fetchTubeList(y$.curator);
 		}
-		log('set tube to watched: ' + tubeUrl);
+		log('set tube to watched: ' + tube);
 	},
 	setVideoWatched: function(videoId) {
 		
 		if ($.inArray(videoId, y$.watched) == -1) {
 			y$.watched.push(videoId);
-			if (y$.watched.length > 300) {
+			if (y$.watched.length > y$.maxWatched) {
 				y$.watched.shift();
 			}
 			$.cookie('watched', y$.watched.join(','), { expires: 1 });
 			log('set to watched: ' + videoId);
 		}
 	},
+	setVolume: function(volume) {
+		if (volume > 100) {
+			volume = 100;
+		} else if (volume < 0) {
+			volume = 0;
+		}
+		y$.volume = volume;
+		$.cookie('volume', volume, { expires: 30 });
+		if (y$.player) {
+			y$.player.setVolume(volume);
+		}
+		log('聲音大小：' + y$.volume, true);
+	},
 	onPlayerReady: function(playlist) {
 		
 		log('youtube player is ready');
 		log(playlist, true);
 		
+		y$.player.setVolume(y$.volume);
 		y$.player.playVideo();
 		
 		y$.initializing = false;
-	
+		
 	},
 	onStateChange: function(state) {
 		//log('state change to ' + state);
@@ -190,10 +209,15 @@ var y$ = {
 			if (!$('#black_screen').is(':visible')) {
 				$('#black_screen').html('').show('explode');
 			}
+			var videoId = y$.getCurrentVideoId();
+			var url = 'http://gdata.youtube.com/feeds/api/videos/' + videoId + '?v=2&alt=json-in-script&callback=?';
+			$.get(url, function(data) {
+				log('playing video: ' + data.entry.title.$t);
+			}, 'json');
 			break;
 			
 			case 0: // ended
-			log('the end');
+			log('tube ended');
 			$('#black_screen').html('<div><h2>本台播放完畢</h2></div>').show('explode', 'slow');
 			y$.setTubeWatched(y$.currentTube);
 			break;
@@ -211,7 +235,6 @@ var y$ = {
 			if (y$.buffering > 1) {
 				log('buffering ... ');
 			}
-			//log('buffering = ' + y$.buffering);
 			y$.buffering++;
 			break;
 			
@@ -236,16 +259,16 @@ var y$ = {
 		}
 	},
 	onTubeListFetched: function(feed) {
-		if (tubeUrls.length < y$.maxTubes && feed.link.length > 0) {
+		if (y$.tubes.length < y$.maxTubes && feed.link.length > 0) {
 			for (var i = 0; i < feed.link.length; i++) {
 				var link = feed.link[i];
 				if (link.rel == 'next') {
 					log('next = ' + link.href);
-					return y$.fetchTubeList(link.href);
+					return y$.fetchTubeList(link.href, true);
 				}
 			}
 		}
-		log('tube count = ' + tubeUrls.length)
+		log('tube count = ' + y$.tubes.length)
 		if (!y$.player) {
 			y$.nextTube();
 		}
@@ -255,7 +278,7 @@ var y$ = {
 			for (var i = 0; i < feed.link.length; i++) {
 				var link = feed.link[i];
 				if (link.rel == 'next') {
-					return y$.fetchEntryList(link.href);
+					return y$.fetchEntryList(link.href, true);
 				}
 			}
 		}
@@ -274,6 +297,7 @@ var y$ = {
 			log('本台已全部播完');
 			$('#black_screen').html('<div><h2>本台已全部播完</h2></div>');
 			y$.setTubeWatched(y$.currentTube);
+			y$.initializing = false;
 			return;
 		}
 		log('play list count = ' + y$.queued.length);
@@ -286,17 +310,23 @@ var y$ = {
 			wmode:             'Opaque'
 		};
 		var attr = { 'id': 'ytplayer' };
-		swfobject.embedSWF(url, 'ytplayer', 720, 450, '11', null, null, param, attr);
+		swfobject.embedSWF(url, 'ytplayer', 720, 405, '11', null, null, param, attr);
 	},
-	fetchTubeList: function(tubeSource) {
-		$.get(tubeSource + '&callback=?', function(data) {
+	fetchTubeList: function(curator, isUrl) {
+		var source = 'http://gdata.youtube.com/feeds/api/users/' + curator + '/playlists?v=2&alt=json-in-script&max-results=50&callback=?';
+		if (isUrl) {
+			source = curator + '&callback=?';
+		}
+		$.get(source, function(data) {
+			log(data);
 			var feed = data.feed;
 			var entries = feed.entry;
-			for (var i = 0; i < entries.length && tubeUrls.length < y$.maxTubes; i++) {
-				var url = entries[i].content.src + '&alt=json-in-script&max-results=50';
-				if ($.inArray(url, y$.watchedTubes) == -1 && $.inArray(url, tubeUrls)) {
-					log('fetched tube: ' + url);
-					tubeUrls.push(url);
+			for (var i = 0; i < entries.length && y$.tubes.length < y$.maxTubes; i++) {
+				var tube = entries[i].yt$playlistId.$t;
+				//var url = entries[i].content.src + '&alt=json-in-script&max-results=50';
+				if ($.inArray(tube, y$.watchedTubes) == -1 && $.inArray(tube, y$.tubes)) {
+					log('fetched tube: ' + tube);
+					y$.tubes.push(tube);
 				}
 			}
 			
@@ -304,8 +334,11 @@ var y$ = {
 			
 		}, 'json');
 	},
-	fetchEntryList: function(url) {
-		url += '&callback=?';
+	fetchEntryList: function(tube, isUrl) {
+		var url = 'http://gdata.youtube.com/feeds/api/playlists/' + tube + '?v=2&alt=json-in-script&max-results=50&callback=?';
+		if (isUrl) {
+			url = tube + '&callback=?';
+		}
 		
 		$.get(url, function(data) {
 			
@@ -327,18 +360,17 @@ var y$ = {
 	nextTube: function() {
 		if (y$.player) {
 			y$.player.stopVideo();
+			y$.player.destroy();
 		}
-		if (!tubeUrls.length) {
-			log('no tube url!');
+		if (!y$.tubes.length) {
+			log('no tube!');
 		}
-		var url = tubeUrls.shift();
-		log('tube url = ' + url);
-		tubeUrls.push(url);
+		var tube = y$.tubes.shift();
+		log('tube = ' + tube);
+		y$.tubes.push(tube);
 		y$.queued = [ ];
-		//var url = 'http://gdata.youtube.com/feeds/api/standardfeeds/TW/most_recent?v=2&alt=json-in-script&max-results=50';
-		//var url = 'http://gdata.youtube.com/feeds/api/users/ttvnewsview/uploads?v=2&alt=json-in-script&max-results=50';
-		y$.currentTube = url;
-		y$.fetchEntryList(url);
+		y$.currentTube = tube;
+		y$.fetchEntryList(tube);
 	},
 	init: function() {
 		
@@ -357,26 +389,28 @@ var y$ = {
 			y$.watched = watchedList.split(',');
 		}
 		log('watched list count = ' + y$.watched.length);
+		
 		var watchedTubes = $.cookie('watchedTubes');
 		if (watchedTubes) {
 			y$.watchedTubes = watchedTubes.split(',');
 		}
 		log('watched tubes count = ' + y$.watchedTubes.length);
 		
-		y$.fetchTubeList(tubeSource);
+		var volume = $.cookie('volume');
+		if (volume) {
+			y$.setVolume(volume);
+		}
+		
+		y$.fetchTubeList(y$.curator);
 		
 	}
 };
-
-var tubeSource = 'http://gdata.youtube.com/feeds/api/users/louisje/playlists?v=2&alt=json-in-script&max-results=50';
-var tubeUrls = [ ];
 
 var onYouTubePlayerReady = function(playlist) {
 	
 	log('flash player is ready');
 	
 	y$.player = $('#ytplayer').get(0);
-	var yt = 'y$.';
 	
 	y$.player.addEventListener('onPlaybackQualityChange', 'y$.onPlaybackQualityChange');
 	y$.player.addEventListener('onStateChange', 'y$.onStateChange');
@@ -393,31 +427,6 @@ $(function() {
 	
 	$('button').button();
 	
-	$('#btn_power').click(function() {
-		if (y$.player) {
-			y$.player.pauseVideo();
-			// save last watched
-			return;
-		}
-		/*
-		$('#btn_power').unbind('click');
-		$('#btn_power').click(function() {
-			if (y$.player) {
-				y$.player.pauseVideo();
-				// save last watched
-			}
-			//$('#black_screen').html('<div><h2>電源已關閉</h2></html>');
-		});
-		*/
-	});
-	
-	$('#btn_skip').click(function() {
-		if (y$.player) {
-			y$.setTubeWatched(y$.currentTube);
-		}
-		$('#btn_next').click();
-	});
-	
 	$('#btn_next').click(function() {
 		if (!y$.player && !y$.initializing) {
 			y$.init()
@@ -430,7 +439,7 @@ $(function() {
 		if (y$.player) {
 			if (y$.player.isMuted()) {
 				y$.player.unMute();
-				log('取消靜音', true);
+				log('靜音己取消', true);
 			} else {
 				y$.player.mute();
 				log('靜音', true);
@@ -438,8 +447,12 @@ $(function() {
 		}
 	});
 	
-	//log('navigator.language = ' + navigator.language);
-	//log('navigator.browserLanguage = ' + navigator.browserLanguage);
-	//log('navigator.systemLanguage = ' + navigator.systemLanguage);
-	//log('navigator.userLanguage = ' + navigator.userLanguage);
+	$('#btn_louder').click(function() {
+		y$.setVolume(y$.volume + 10);
+	});
+	
+	$('#btn_lower').click(function() {
+		y$.setVolume(y$.volume - 10);
+	});
+	
 });
