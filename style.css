@@ -5,7 +5,7 @@
 }
 
 #lcd_screen {
-	width:       365px;
+	width:       320px;
 	height:      20px;
 	padding:     5px;
 	overflow:    hidden;

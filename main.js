@@ -432,6 +432,7 @@ var y$ = {
 			y$.setVolume(volume);
 		}
 		
+		y$.tubes = [ ];
 		y$.fetchTubeList(y$.curator);
 		
 	}
@@ -459,12 +460,10 @@ $(function() {
 	$('button').button();
 	
 	$('#btn_next').click(function() {
-		if (!y$.player && !y$.initializing) {
-			y$.init()
+		if (y$.initializing) {
+			log('calmdown man');
 		} else if (y$.player) {
 			y$.nextTube();
-		} else {
-			log('calmdown man');
 		}
 	});
 	
@@ -488,4 +487,39 @@ $(function() {
 		y$.setVolume(parseInt(y$.volume) - 10);
 	});
 	
+	$('#btn_power').button({
+		'icons': {
+			'primary': 'ui-icon-power'
+		},
+		'text': false
+	});
+	
+	$('#btn_mute').button({
+		'icons': {
+			'primary': 'ui-icon-volume-off'
+		},
+		'text': false
+	});
+	
+	
+	$('#btn_power').click(function() {
+		if (y$.poweroff) {
+			y$.poweroff = false;
+			y$.init();
+		} else if (y$.initializing) {
+			log('still initializing');
+		} else {
+			if (y$.player) {
+				y$.player.pauseVideo();
+				y$.player.destroy();
+				y$.player = null;
+			}
+			$('#black_screen').html('<div><h2>電源已關閉</h2></div>');
+			$('#black_screen').css('background-image', '');
+			if (!$('#black_screen').is(':visible')) {
+				$('#black_screen').show('explode');
+			}
+			y$.poweroff = true;
+		}
+	});
 });
