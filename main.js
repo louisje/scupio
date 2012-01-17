@@ -432,7 +432,6 @@ var y$ = {
 			y$.setVolume(volume);
 		}
 		
-		y$.tubes = [ ];
 		y$.fetchTubeList(y$.curator);
 		
 	}
@@ -501,7 +500,6 @@ $(function() {
 		'text': false
 	});
 	
-	
 	$('#btn_power').click(function() {
 		if (y$.poweroff) {
 			y$.poweroff = false;
@@ -519,6 +517,7 @@ $(function() {
 			if (!$('#black_screen').is(':visible')) {
 				$('#black_screen').show('explode');
 			}
+			y$.tubes = [ ];
 			y$.poweroff = true;
 		}
 	});
