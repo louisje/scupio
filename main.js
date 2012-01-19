@@ -1,7 +1,11 @@
 
 var log = function(text, remote) {
-	if (window.console && console.log)
-		console.log(text);
+	if (window.console && console.log) {
+		if (remote)
+			console.log('[::]' + text);
+		else
+			console.log(text);
+	}
 	if (remote) {
 		$('#lcd_screen').text(text);
 	}
@@ -145,6 +149,7 @@ var y$ = {
 	watchedTubes:    [ ],
 	player:          null,
 	currentTube:     null,
+	gonextgo:        false,
 	volume:          50,
 	buffering:       0,
 	initializing:    false,
@@ -211,25 +216,30 @@ var y$ = {
 	onPlayerReady: function(playlist) {
 		
 		log('youtube player is ready');
-		log(playlist, true);
-		
-		y$.player.setVolume(y$.volume);
-		y$.player.playVideo();
+		//log(playlist, true);
 		
 		y$.initializing = false;
 		
+		if (y$.gonextgo) {
+			log('[>>] auto forwarding');
+			y$.gonextgo = false;
+			y$.nextTube();
+		}
+		
+		y$.player.setVolume(y$.volume);
+		y$.player.playVideo();
 	},
 	onStateChange: function(state) {
 		//log('state change to ' + state);
 		switch(state) {
 			
 			case -1: // unstart
-			log('unstart');
+			//log('unstart');
 			y$.buffering = 0;
 			var videoId = y$.getCurrentVideoId();
 			var url = 'http://gdata.youtube.com/feeds/api/videos/' + videoId + '?v=2&alt=json-in-script&callback=?';
 			$.get(url, function(data) {
-				log('playing video: ' + data.entry.title.$t);
+				log('video title: ' + data.entry.title.$t);
 			}, 'json');
 			break;
 			
@@ -324,6 +334,9 @@ var y$ = {
 		  .css('background-position', 'center')
 		  .css('background-position', 'middle')
 		  .html('');
+		if (!$('#black_screen').is(':visible')) {
+			$('#black_screen').html('').show('explode');
+		}
 		
 		for (var i = 0; i < feed.link.length; i++) {
 			if (feed.link[i].rel == 'alternate') {
@@ -342,6 +355,7 @@ var y$ = {
 			}
 		}
 		
+		log(feed.title.$t, true);
 		y$.cuePlaylist(feed.title.$t);
 	},
 	cuePlaylist: function(title) {
@@ -413,11 +427,11 @@ var y$ = {
 		}, 'json');
 	},
 	nextTube: function() {
-		if (!$('#black_screen').is(':visible')) {
-			$('#black_screen').html('').show('explode');
-		}
+		//if (!$('#black_screen').is(':visible')) {
+		//	$('#black_screen').html('').show('explode');
+		//}
 		if (y$.player) {
-			y$.player.stopVideo();
+			//y$.player.pauseVideo();
 			y$.player.destroy();
 			y$.player = null;
 		}
@@ -477,7 +491,7 @@ var y$ = {
 
 var onYouTubePlayerReady = function(playlist) {
 	
-	log('flash player is ready');
+	//log('flash player is ready');
 	
 	y$.player = $('#ytplayer').get(0);
 	
@@ -497,9 +511,13 @@ $(function() {
 	$('button').button();
 	
 	$('#btn_next').click(function() {
-		if (y$.initializing) {
+		if (y$.initializing && y$.gonextgo) {
 			log('calmdown man');
+		} else if (y$.initializing) {
+			y$.gonextgo = true;
 		} else if (y$.player) {
+			log('[->] user change tube');
+			y$.gonextgo = false;
 			y$.nextTube();
 		}
 	});
@@ -553,7 +571,7 @@ $(function() {
 			$('#black_screen').html('<div><h2>電源已關閉</h2></div>');
 			$('#black_screen').css('background-image', '');
 			if (!$('#black_screen').is(':visible')) {
-				$('#black_screen').show('explode');
+				$('#black_screen').show('explode', 'slow');
 			}
 			y$.tubes = [ ];
 			y$.poweroff = true;
