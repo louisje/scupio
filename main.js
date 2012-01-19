@@ -118,6 +118,25 @@ var browserDetection = {
 
 // TODO: analytics
 
+var news$ = {
+	yesterdayISOString: '2012-01-19T09:54:01.071Z',
+	urlTemplate:        'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&published-min-not-support=%s',
+	sources:            [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'pts' ],
+	getOne: function() {
+		var newsSource = news$.sources.shift();
+		if (newsSource) {
+			log('pick up news tube: ' + newsSource);
+			return sprintf(news$.urlTemplate, newsSource, news$.yesterdayISOString);
+		}
+		return null;
+	},
+	init: function() {
+		var yesterday = new Date();
+		yesterday.setDate(yesterday.getDate() - 1);
+		news$.yesterdayISOString = yesterday.toISOString();
+	}
+};
+
 var y$ = {
 	curator:         'louisje',
 	tubes:           [ ],
@@ -145,7 +164,7 @@ var y$ = {
 	},
 	setTubeWatched: function(tube) {
 		
-		if ($.inArray(tube, y$.watchedTubes) == -1) {
+		if ($.inArray(tube, y$.watchedTubes) == -1 && !tube.match(/^http:\/\//)) {
 			y$.watchedTubes.push(tube);
 			if (y$.watchedTubes.length > y$.maxWatchedTubes) {
 				y$.watchedTubes.shift();
@@ -263,10 +282,15 @@ var y$ = {
 	},
 	onTubeListFetched: function(feed) {
 		if (y$.tubes.length < y$.maxTubes && feed.link.length > 0) {
+			var newsTube = news$.getOne();
+			if (newsTube) {
+				//log('new tube: ' + newsTube);
+				y$.tubes.push(newsTube);
+			}
 			for (var i = 0; i < feed.link.length; i++) {
 				var link = feed.link[i];
 				if (link.rel == 'next') {
-					log('next = ' + link.href);
+					//log('next = ' + link.href);
 					return y$.fetchTubeList(link.href, true);
 				}
 			}
@@ -288,7 +312,12 @@ var y$ = {
 				}
 			}
 		}
-		var thumbnail = feed.media$group.media$thumbnail[1].url;
+		
+		log(feed);
+		log('entry list fetched');
+		
+		var thumbnail = feed.media$group ? feed.media$group.media$thumbnail[1].url : feed.entry[0].media$group.media$thumbnail[1].url;
+		
 		$('#black_screen')
 		  .css('background-image',    'url(' + thumbnail + ')')
 		  .css('background-repeat',   'no-repeat')
@@ -302,10 +331,14 @@ var y$ = {
 			}
 		}
 		
-		var content = feed.media$group.media$content;
-		for (var i = 0; i < content.length; i++) {
-			if (content[i].yt$format == 5) {
-				log('tube url = ' + content[i].url);
+		if (feed.media$group) {
+			var content = feed.media$group.media$content;
+			if (content) {
+				for (var i = 0; i < content.length; i++) {
+					if (content[i].yt$format == 5) {
+						log('tube url = ' + content[i].url);
+					}
+				}
 			}
 		}
 		
@@ -329,18 +362,18 @@ var y$ = {
 		var param = {
 			allowFullScreen:   true,
 			allowScriptAccess: 'always',
-			wmode:             'Opaque'
+			wmode:             'opaque'
 		};
 		var attr = { 'id': 'ytplayer' };
 		swfobject.embedSWF(url, 'ytplayer', 720, 405, '11', null, null, param, attr);
 	},
 	fetchTubeList: function(curator, isUrl) {
-		var source = 'http://gdata.youtube.com/feeds/api/users/' + curator + '/playlists?v=2&alt=json-in-script&max-results=50&callback=?';
+		var source = 'http://gdata.youtube.com/feeds/api/users/' + curator + '/playlists?v=2&alt=json-in-script&max-results=5&callback=?';
 		if (isUrl) {
 			source = curator + '&callback=?';
 		}
 		$.get(source, function(data) {
-			log(data);
+			//log(data);
 			var feed = data.feed;
 			var entries = feed.entry;
 			for (var i = 0; i < entries.length && y$.tubes.length < y$.maxTubes; i++) {
@@ -366,7 +399,7 @@ var y$ = {
 			
 			var feed = data.feed;
 			var entries = feed.entry;
-			log(data);
+			//log(data);
 			
 			for (var i = 0; i < entries.length && y$.queued.length < y$.maxVideos; i++) {
 				var videoId = entries[i].media$group.yt$videoid.$t;
@@ -401,7 +434,10 @@ var y$ = {
 		y$.tubes.push(tube);
 		y$.queued = [ ];
 		y$.currentTube = tube;
-		y$.fetchEntryList(tube);
+		if (tube.match(/^http:\/\//))
+			y$.fetchEntryList(tube, true);
+		else
+			y$.fetchEntryList(tube);
 	},
 	init: function() {
 		
@@ -431,6 +467,8 @@ var y$ = {
 		if (volume) {
 			y$.setVolume(volume);
 		}
+		
+		news$.init();
 		
 		y$.fetchTubeList(y$.curator);
 		
