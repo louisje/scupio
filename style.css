@@ -30,10 +30,13 @@ button {
 	height:           405px;
 	color:            #888;
 	background-color: black;
-	text-align:       center;
-	top:              45%;
-	position:         relative;
 	border: 1px black solid;
+}
+
+#ytplayer div, #black_screen div {
+	text-align: center;
+	top:        45%;
+	position:   relative;
 }
 
 #black_screen {

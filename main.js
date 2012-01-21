@@ -121,27 +121,12 @@ var browserDetection = {
 };
 
 // TODO: analytics
-
-var news$ = {
-	yesterdayISOString: '2012-01-19T09:54:01.071Z',
-	urlTemplate:        'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&published-min-not-support=%s',
-	sources:            [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'pts' ],
-	getOne: function() {
-		var newsSource = news$.sources.shift();
-		if (newsSource) {
-			log('pick up news tube: ' + newsSource);
-			return sprintf(news$.urlTemplate, newsSource, news$.yesterdayISOString);
-		}
-		return null;
-	},
-	init: function() {
-		var yesterday = new Date();
-		yesterday.setDate(yesterday.getDate() - 1);
-		news$.yesterdayISOString = yesterday.toISOString();
-	}
-};
+// TODO: keyboard
 
 var y$ = {
+	yesterday:       '2012-01-19T09:54:01.071Z',
+	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&published-min-not-support=%s',
+	bloggers:        [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'pts' ],
 	curator:         'louisje',
 	tubes:           [ ],
 	queued:          [ ],
@@ -161,6 +146,14 @@ var y$ = {
 	maxWatched:      200,
 	keepTubes:       30,
 	keepVideos:      7,
+	getOneBlogger: function() {
+		var blogger = y$.bloggers.shift();
+		if (blogger) {
+			log('pick up a blogger: ' + blogger);
+			return sprintf(y$.bloggerUrl, blogger, y$.yesterday);
+		}
+		return null;
+	},
 	getCurrentVideoId: function() {
 		if (y$.player) {
 			return y$.player.getVideoUrl().match(/v=([^&]+)/)[1];
@@ -215,7 +208,7 @@ var y$ = {
 	},
 	onPlayerReady: function(playlist) {
 		
-		log('youtube player is ready');
+		log('player is ready');
 		//log(playlist, true);
 		
 		y$.initializing = false;
@@ -292,10 +285,10 @@ var y$ = {
 	},
 	onTubeListFetched: function(feed) {
 		if (y$.tubes.length < y$.maxTubes && feed.link.length > 0) {
-			var newsTube = news$.getOne();
-			if (newsTube) {
-				//log('new tube: ' + newsTube);
-				y$.tubes.push(newsTube);
+			var bloggerUrl = y$.getOneBlogger();
+			if (bloggerUrl) {
+				//log('blogger url: ' + bloggerUrl);
+				y$.tubes.push(bloggerUrl);
 			}
 			for (var i = 0; i < feed.link.length; i++) {
 				var link = feed.link[i];
@@ -457,7 +450,7 @@ var y$ = {
 		
 		y$.initializing = true;
 		
-		var pos = $('#ytplayer').position();
+		var pos = $('#ytplayer').offset();
 		$('#black_screen')
 		  .css('top', pos.top)
 		  .css('left', pos.left)
@@ -482,7 +475,9 @@ var y$ = {
 			y$.setVolume(volume);
 		}
 		
-		news$.init();
+		var now = new Date();
+		now.setDate(now.getDate() - 1);
+		y$.yesterday = now.toISOString();
 		
 		y$.fetchTubeList(y$.curator);
 		
@@ -564,7 +559,7 @@ $(function() {
 			log('still initializing');
 		} else {
 			if (y$.player) {
-				y$.player.pauseVideo();
+				//y$.player.pauseVideo();
 				y$.player.destroy();
 				y$.player = null;
 			}
