@@ -122,8 +122,11 @@ var browserDetection = {
 
 // TODO: analytics
 // TODO: keyboard
+// TODO: blank_screen
+// TODO: player javascript api
 
 var y$ = {
+	ondemand:        false,
 	yesterday:       '2012-01-19T09:54:01.071Z',
 	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&published-min-not-support=%s',
 	bloggers:        [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'pts' ],
@@ -217,6 +220,15 @@ var y$ = {
 			log('[>>] auto forwarding');
 			y$.gonextgo = false;
 			y$.nextTube();
+			return;
+		}
+		
+		if (y$.ondemand) {
+			log('cued by demand mode');
+			if ($('#black_screen').is(':visible')) {
+				$('#black_screen').hide('fade');
+			}
+			return;
 		}
 		
 		y$.player.setVolume(y$.volume);
@@ -238,7 +250,7 @@ var y$ = {
 			
 			case 0: // ended
 			log('ended');
-			$('#black_screen').html('<div><h2>本台播放完畢</h2></div>').show('explode', 'slow');
+			$('#black_screen').html('<div><h2>本台播放完畢</h2></div>').show('fade');
 			y$.setTubeWatched(y$.currentTube);
 			break;
 			
@@ -246,7 +258,7 @@ var y$ = {
 			var videoId = y$.getCurrentVideoId();
 			y$.setVideoWatched(videoId);
 			if ($('#black_screen').is(':visible')) {
-				$('#black_screen').hide('explode');
+				$('#black_screen').hide('fade');
 			}
 			break;
 			
@@ -327,8 +339,8 @@ var y$ = {
 		  .css('background-position', 'center')
 		  .css('background-position', 'middle')
 		  .html('');
-		if (!$('#black_screen').is(':visible')) {
-			$('#black_screen').html('').show('explode');
+		if ($('#black_screen').is(':hidden')) {
+			$('#black_screen').html('').show('fade');
 		}
 		
 		for (var i = 0; i < feed.link.length; i++) {
@@ -386,7 +398,7 @@ var y$ = {
 			for (var i = 0; i < entries.length && y$.tubes.length < y$.maxTubes; i++) {
 				var tube = entries[i].yt$playlistId.$t;
 				//var url = entries[i].content.src + '&alt=json-in-script&max-results=50';
-				if ($.inArray(tube, y$.watchedTubes) == -1 && $.inArray(tube, y$.tubes)) {
+				if (($.inArray(tube, y$.watchedTubes) == -1 && $.inArray(tube, y$.tubes)) || y$.ondemand) {
 					//log('fetched tube: ' + tube);
 					y$.tubes.push(tube);
 				}
@@ -410,7 +422,7 @@ var y$ = {
 			
 			for (var i = 0; i < entries.length && y$.queued.length < y$.maxVideos; i++) {
 				var videoId = entries[i].media$group.yt$videoid.$t;
-				if ($.inArray(videoId, y$.watched) == -1) {
+				if ($.inArray(videoId, y$.watched) == -1 || y$.ondemand) {
 					y$.queued.push(videoId);
 				}
 			}
@@ -420,9 +432,10 @@ var y$ = {
 		}, 'json');
 	},
 	nextTube: function() {
-		//if (!$('#black_screen').is(':visible')) {
-		//	$('#black_screen').html('').show('explode');
-		//}
+		$('#black_screen').css('background-image', '');
+		if ($('#black_screen').is(':hidden')) {
+			$('#black_screen').html('').show('fade');
+		}
 		if (y$.player) {
 			//y$.player.pauseVideo();
 			y$.player.destroy();
@@ -517,6 +530,20 @@ $(function() {
 		}
 	});
 	
+	$('#btn_next').mousedown(function() {
+		setTimeout(function() {
+			if ($('#btn_next').hasClass('ui-state-active')) {
+				if (y$.ondemand) {
+					log('demand mode: Off', true);
+					y$.ondemand = false;
+				} else {
+					log('demand mode: On', true);
+					y$.ondemand = true;
+				}
+			}
+		}, 1000);
+	});
+	
 	$('#btn_mute').click(function() {
 		if (y$.player) {
 			if (y$.player.isMuted()) {
@@ -565,11 +592,12 @@ $(function() {
 			}
 			$('#black_screen').html('<div><h2>電源已關閉</h2></div>');
 			$('#black_screen').css('background-image', '');
-			if (!$('#black_screen').is(':visible')) {
-				$('#black_screen').show('explode', 'slow');
+			if ($('#black_screen').is(':hidden')) {
+				$('#black_screen').show('fade');
 			}
 			y$.tubes = [ ];
 			y$.poweroff = true;
+			y$.ondemand = false;
 		}
 	});
 });
