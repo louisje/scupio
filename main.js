@@ -291,6 +291,7 @@ var y$ = {
 			var videoId = y$.getCurrentVideoId();
 			y$.setVideoWatched(videoId);
 			//y$.setTubeWatched(y$.currentTube);
+			break;
 			
 			default:
 		}
@@ -532,7 +533,7 @@ $(function() {
 	
 	$('#btn_next').mousedown(function() {
 		setTimeout(function() {
-			if ($('#btn_next').hasClass('ui-state-active')) {
+			if ($('#btn_next').is('.ui-state-active')) {
 				if (y$.ondemand) {
 					log('demand mode: Off', true);
 					y$.ondemand = false;
@@ -598,6 +599,79 @@ $(function() {
 			y$.tubes = [ ];
 			y$.poweroff = true;
 			y$.ondemand = false;
+		}
+	});
+	
+	$(document).keyup(function(event) {
+		var which = event.which;
+		switch(which) {
+			case 13:
+			if ($('#btn_next').is('.ui-state-active')) {
+				$('#btn_next').click();
+			}
+			$('#btn_next').mouseup();
+			break;
+			
+			default:
+		}
+	});
+	
+	$(document).keydown(function(event) {
+		var which = event.which;
+		switch(which) {
+			case 13:
+			if (!$('#btn_next').is('.ui-state-active')) {
+				$('#btn_next').mousedown();
+			}
+			break;
+			
+			default:
+		}
+	});
+	
+	$(document).keypress(function(event) {
+		var which = event.which;
+		switch(which) {
+			case 112: // 'p'
+			if (y$.player) {
+				var player = y$.player;
+				var state = player.getPlayerState();
+				switch(state) {
+					case 1:
+					player.pauseVideo();
+					break;
+					
+					case -1:
+					case 2:
+					player.playVideo();
+					break;
+					
+					default:
+				}
+			}
+			break;
+			
+			case 61:
+			$('#btn_louder').click();
+			break;
+			
+			case 45:
+			$('#btn_lower').click();
+			break;
+			
+			case 48:
+			$('#btn_mute').click();
+			break;
+			
+			case 13:
+			break;
+			
+			case 57: // '9'
+			$('#btn_power').click();
+			break;
+			
+			default:
+			log('key pressed: ' + which);
 		}
 	});
 });
