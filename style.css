@@ -25,7 +25,7 @@ button {
 	margin: 5px;
 }
 
-#ytplayer, #black_screen {
+#ytplayer, #blank_screen {
 	width:            720px;
 	height:           405px;
 	color:            #888;
@@ -33,17 +33,17 @@ button {
 	border: 1px black solid;
 }
 
-#ytplayer div, #black_screen div {
+#ytplayer div, #blank_screen div {
 	text-align: center;
 	top:        45%;
 	position:   relative;
 }
 
-#black_screen {
+#blank_screen {
 	position: absolute;
 }
 
-#ytplayer div, #black_screen div {
+#ytplayer div, #blank_screen div {
 	top: 50%;
 	position: relative;
 	background-color: black;

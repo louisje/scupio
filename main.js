@@ -122,8 +122,49 @@ var browserDetection = {
 
 // TODO: analytics
 // TODO: keyboard
-// TODO: blank_screen
 // TODO: player javascript api
+
+var blank$ = {
+	show: function(text) {
+		if (text) {
+			$('#blank_screen').html('<div><h2>' + text + '</h2></div>');
+		} else {
+			$('#blank_screen').html('');
+		}
+		if (!$('#blank_screen').is(':visible')) {
+			$('#blank_screen').show('fade');
+		}
+	},
+	setBackground: function(thumbnail) {
+		if (thumbnail) {
+			$('#blank_screen')
+			  .css('background-image',    'url(' + thumbnail + ')')
+			  .css('background-repeat',   'no-repeat')
+			  .css('background-position', 'center')
+			  .css('background-position', 'middle')
+			  .html('');
+		} else {
+			$('#blank_screen').css('background-image', '');
+		}
+	},
+	hide: function(duration) {
+		if ($('#blank_screen').is(':visible')) {
+			if (duration) {
+				$('#blank_screen').delay(duration).hide('fade', 'slow');
+			} else {
+				$('#blank_screen').hide('fade');
+			}
+		}
+	},
+	init: function() {
+		var pos = $('#ytplayer').offset();
+		$('#blank_screen')
+		  .css('top', pos.top)
+		  .css('left', pos.left)
+		  .html('<div><h2>電源開啟中</h2></div>')
+		  .show();
+	}
+};
 
 var y$ = {
 	ondemand:        false,
@@ -225,9 +266,7 @@ var y$ = {
 		
 		if (y$.ondemand) {
 			log('cued by demand mode');
-			if ($('#black_screen').is(':visible')) {
-				$('#black_screen').hide('fade');
-			}
+			blank$.hide(400);
 			return;
 		}
 		
@@ -250,16 +289,14 @@ var y$ = {
 			
 			case 0: // ended
 			log('ended');
-			$('#black_screen').html('<div><h2>本台播放完畢</h2></div>').show('fade');
+			blank$.show('本台播放完畢');
 			y$.setTubeWatched(y$.currentTube);
 			break;
 			
 			case 1: // playing
 			var videoId = y$.getCurrentVideoId();
 			y$.setVideoWatched(videoId);
-			if ($('#black_screen').is(':visible')) {
-				$('#black_screen').hide('fade');
-			}
+			blank$.hide();
 			break;
 			
 			case 2: // pause
@@ -286,11 +323,8 @@ var y$ = {
 		
 		switch(error) {
 			case 150:
-			log('本片因為含有版權內容，被版權擁有者封鎖');
-			$('#black_screen').html('<div><h2>本片因為含有版權內容，被版權擁有者封鎖</h2></div>');
-			var videoId = y$.getCurrentVideoId();
-			y$.setVideoWatched(videoId);
-			//y$.setTubeWatched(y$.currentTube);
+			blank$.show('本片因為含有版權內容，被版權擁有者封鎖');
+			y$.setVideoWatched(y$.getCurrentVideoId());
 			break;
 			
 			default:
@@ -334,15 +368,8 @@ var y$ = {
 		
 		var thumbnail = feed.media$group ? feed.media$group.media$thumbnail[1].url : feed.entry[0].media$group.media$thumbnail[1].url;
 		
-		$('#black_screen')
-		  .css('background-image',    'url(' + thumbnail + ')')
-		  .css('background-repeat',   'no-repeat')
-		  .css('background-position', 'center')
-		  .css('background-position', 'middle')
-		  .html('');
-		if ($('#black_screen').is(':hidden')) {
-			$('#black_screen').html('').show('fade');
-		}
+		blank$.setBackground(thumbnail);
+		blank$.show();
 		
 		for (var i = 0; i < feed.link.length; i++) {
 			if (feed.link[i].rel == 'alternate') {
@@ -366,8 +393,7 @@ var y$ = {
 	},
 	cuePlaylist: function(title) {
 		if (y$.queued.length == 0) {
-			log('本台已全部播完');
-			$('#black_screen').html('<div><h2>本台已全部播完</h2></div>');
+			blank$.show('本台已全部播完');
 			y$.setTubeWatched(y$.currentTube);
 			
 			y$.initializing = false;
@@ -433,10 +459,10 @@ var y$ = {
 		}, 'json');
 	},
 	nextTube: function() {
-		$('#black_screen').css('background-image', '');
-		if ($('#black_screen').is(':hidden')) {
-			$('#black_screen').html('').show('fade');
-		}
+		
+		blank$.setBackground();
+		blank$.show();
+		
 		if (y$.player) {
 			//y$.player.pauseVideo();
 			y$.player.destroy();
@@ -464,12 +490,7 @@ var y$ = {
 		
 		y$.initializing = true;
 		
-		var pos = $('#ytplayer').offset();
-		$('#black_screen')
-		  .css('top', pos.top)
-		  .css('left', pos.left)
-		  .html('<div><h2>電源開啟中</h2></div>')
-		  .show();
+		blank$.init();
 		
 		// load watched list from cookie
 		var watchedList = $.cookie('watched');
@@ -591,11 +612,10 @@ $(function() {
 				y$.player.destroy();
 				y$.player = null;
 			}
-			$('#black_screen').html('<div><h2>電源已關閉</h2></div>');
-			$('#black_screen').css('background-image', '');
-			if ($('#black_screen').is(':hidden')) {
-				$('#black_screen').show('fade');
-			}
+			
+			blank$.setBackground();
+			blank$.show('電源已關閉');
+			
 			y$.tubes = [ ];
 			y$.poweroff = true;
 			y$.ondemand = false;
