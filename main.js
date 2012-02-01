@@ -2,7 +2,7 @@
 var log = function(text, remote) {
 	if (window.console && console.log) {
 		if (remote)
-			console.log('[::]' + text);
+			console.log('[::] ' + text);
 		else
 			console.log(text);
 	}
@@ -250,10 +250,7 @@ var y$ = {
 		}
 		log('聲音大小：' + volume, true);
 	},
-	onPlayerReady: function(playlist) {
-		
-		log('player is ready');
-		//log(playlist, true);
+	onCue: function() {
 		
 		y$.initializing = false;
 		
@@ -271,11 +268,17 @@ var y$ = {
 					blank$.hide('slow');
 				}
 			}, 500);
-			return;
+		} else {
+			y$.player.setVolume(y$.volume);
+			y$.player.playVideo();
 		}
+	},
+	onPlayerReady: function(playlist) {
 		
-		y$.player.setVolume(y$.volume);
-		y$.player.playVideo();
+		log('player is ready');
+		//log(playlist, true);
+		
+		y$.onCue();
 	},
 	onStateChange: function(state) {
 		//log('state change to ' + state);
@@ -304,18 +307,19 @@ var y$ = {
 			break;
 			
 			case 2: // pause
-			log('paused');
+			log('... paused');
 			break;
 			
 			case 3: // buffering
 			if (y$.buffering > 1) {
-				log('buffering ... ');
+				log('... buffering');
 			}
 			y$.buffering++;
 			break;
 			
 			case 5: // cued
-			log('cued');
+			log('... cued');
+			y$.onCue();
 			break;
 			
 			default:
@@ -407,15 +411,20 @@ var y$ = {
 		}
 		log('play list count = ' + y$.queued.length);
 		
-		var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent(title), y$.queued.join(','));
-		log(url);
-		var param = {
-			allowFullScreen:   true,
-			allowScriptAccess: 'always',
-			wmode:             'opaque'
-		};
-		var attr = { 'id': 'ytplayer' };
-		swfobject.embedSWF(url, 'ytplayer', 720, 405, '11', null, null, param, attr);
+		if (y$.player) {
+			y$.player.cuePlaylist(y$.queued);
+		} else {
+			log('initial a new player');
+			var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent(title), y$.queued.join(','));
+			log(url);
+			var param = {
+				allowFullScreen:   true,
+				allowScriptAccess: 'always',
+				wmode:             'opaque'
+			};
+			var attr = { 'id': 'ytplayer' };
+			swfobject.embedSWF(url, 'ytplayer', 720, 405, '11', null, null, param, attr);
+		}
 	},
 	fetchTubeList: function(curator, isUrl) {
 		var source = 'http://gdata.youtube.com/feeds/api/users/' + curator + '/playlists?v=2&alt=json-in-script&max-results=5&callback=?';
@@ -467,12 +476,8 @@ var y$ = {
 		blank$.setBackground();
 		blank$.show();
 		
-		if (y$.player) {
-			//y$.player.pauseVideo();
-			y$.player.destroy();
-			y$.player = null;
-		}
 		if (y$.initializing) {
+			log('ooops!');
 			return;
 		}
 		y$.initializing = true;
@@ -532,7 +537,6 @@ var onYouTubePlayerReady = function(playlist) {
 	y$.player.addEventListener('onPlaybackQualityChange', 'y$.onPlaybackQualityChange');
 	y$.player.addEventListener('onStateChange', 'y$.onStateChange');
 	y$.player.addEventListener('onError', 'y$.onError');
-	//y$.player.addEventListener('onReady', 'y$.onReady');
 	
 	y$.onPlayerReady(decodeURIComponent(playlist));
 };
@@ -612,7 +616,6 @@ $(function() {
 			log('still initializing');
 		} else {
 			if (y$.player) {
-				//y$.player.pauseVideo();
 				y$.player.destroy();
 				y$.player = null;
 			}
@@ -667,6 +670,7 @@ $(function() {
 					
 					case -1:
 					case 2:
+					case 5:
 					player.playVideo();
 					break;
 					
