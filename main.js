@@ -263,11 +263,18 @@ var y$ = {
 		
 		if (y$.ondemand) {
 			log('cued by demand mode');
-			setTimeout(function() {
-				if (!y$.initializing) {
-					blank$.hide('slow');
+			var timeoutId = setTimeout(function() {
+				if (y$.player) {
+					var state = y$.player.getPlayerState();
+					if (state == 5 || state == -1) {
+						blank$.hide();
+					}
 				}
-			}, 500);
+			}, 2000);
+			$('#btn_next').one('mousedown', function() {
+				clearTimeout(timeoutId);
+			});
+			
 		} else {
 			y$.player.setVolume(y$.volume);
 			y$.player.playVideo();
@@ -561,17 +568,20 @@ $(function() {
 	});
 	
 	$('#btn_next').mousedown(function() {
-		setTimeout(function() {
+		var timeoutId = setTimeout(function() {
 			if ($('#btn_next').is('.ui-state-active')) {
 				if (y$.ondemand) {
-					log('demand mode: Off', true);
+					log('demand mode: OFF', true);
 					y$.ondemand = false;
 				} else {
-					log('demand mode: On', true);
+					log('demand mode: ON', true);
 					y$.ondemand = true;
 				}
 			}
 		}, 1000);
+		$('#btn_next').one('mouseup', function() {
+			clearTimeout(timeoutId);
+		});
 	});
 	
 	$('#btn_mute').click(function() {
