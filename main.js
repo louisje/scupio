@@ -121,7 +121,6 @@ var browserDetection = {
 };
 
 // TODO: analytics
-// TODO: keyboard
 // TODO: player javascript api
 
 var blank$ = {
@@ -150,7 +149,7 @@ var blank$ = {
 	hide: function(duration) {
 		if ($('#blank_screen').is(':visible')) {
 			if (duration) {
-				$('#blank_screen').delay(duration).hide('fade', 'slow');
+				$('#blank_screen').hide('fade', duration);
 			} else {
 				$('#blank_screen').hide('fade');
 			}
@@ -167,6 +166,7 @@ var blank$ = {
 };
 
 var y$ = {
+	seekInterval:    47,
 	ondemand:        false,
 	yesterday:       '2012-01-19T09:54:01.071Z',
 	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&published-min-not-support=%s',
@@ -266,7 +266,11 @@ var y$ = {
 		
 		if (y$.ondemand) {
 			log('cued by demand mode');
-			blank$.hide(400);
+			setTimeout(function() {
+				if (!y$.initializing) {
+					blank$.hide('slow');
+				}
+			}, 500);
 			return;
 		}
 		
@@ -688,6 +692,32 @@ $(function() {
 			
 			case 57: // '9'
 			$('#btn_power').click();
+			break;
+			
+			case 93: // ']'
+			if (y$.player) {
+				y$.player.nextVideo();
+			}
+			break;
+			
+			case 91: // '['
+			if (y$.player) {
+				y$.player.previousVideo();
+			}
+			break;
+			
+			case 125: // '}'
+			if (y$.player) {
+				var currentTime = y$.player.getCurrentTime();
+				y$.player.seekTo(currentTime + y$.seekInterval);
+			}
+			break;
+			
+			case 123: // {}'
+			if (y$.player) {
+				var currentTime = y$.player.getCurrentTime();
+				y$.player.seekTo(currentTime - y$.seekInterval);
+			}
 			break;
 			
 			default:
