@@ -121,7 +121,20 @@ var browserDetection = {
 };
 
 // TODO: analytics
-// TODO: player javascript api
+// TODO: preload
+
+var KEY = {
+	'ENTER': 13,
+	'-':     45,
+	'0':     48,
+	'9':     57,
+	'=':     61,
+	'[':     91,
+	']':     93,
+	'p':     112,
+	'{':     123,
+	'}':     125
+};
 
 var blank$ = {
 	show: function(text) {
@@ -261,7 +274,9 @@ var y$ = {
 			return;
 		}
 		
-		if (y$.ondemand) {
+		y$.player.setVolume(y$.volume);
+		
+		if (false && y$.ondemand) {
 			log('cued by demand mode');
 			var timeoutId = setTimeout(function() {
 				if (y$.player) {
@@ -274,11 +289,10 @@ var y$ = {
 			$('#btn_next').one('mousedown', function() {
 				clearTimeout(timeoutId);
 			});
-			
-		} else {
-			y$.player.setVolume(y$.volume);
-			y$.player.playVideo();
+			return;
 		}
+		
+		y$.player.playVideo();
 	},
 	onPlayerReady: function(playlist) {
 		
@@ -567,9 +581,9 @@ $(function() {
 		}
 	});
 	
-	$('#btn_next').mousedown(function() {
+	$('#btn_power').mousedown(function() {
 		var timeoutId = setTimeout(function() {
-			if ($('#btn_next').is('.ui-state-active')) {
+			if ($('#btn_power').is('.ui-state-active')) {
 				if (y$.ondemand) {
 					log('demand mode: OFF', true);
 					y$.ondemand = false;
@@ -579,7 +593,7 @@ $(function() {
 				}
 			}
 		}, 1000);
-		$('#btn_next').one('mouseup', function() {
+		$('#btn_power').one('mouseup', function() {
 			clearTimeout(timeoutId);
 		});
 	});
@@ -642,7 +656,14 @@ $(function() {
 	$(document).keyup(function(event) {
 		var which = event.which;
 		switch(which) {
-			case 13:
+			case KEY['9']:
+			if ($('#btn_power').is('.ui-state-active')) {
+				$('#btn_power').click();
+			}
+			$('#btn_power').mouseup();
+			break;
+			
+			case KEY['ENTER']:
 			if ($('#btn_next').is('.ui-state-active')) {
 				$('#btn_next').click();
 			}
@@ -656,7 +677,13 @@ $(function() {
 	$(document).keydown(function(event) {
 		var which = event.which;
 		switch(which) {
-			case 13:
+			case KEY['9']:
+			if (!$('#btn_power').is('.ui-state-active')) {
+				$('#btn_power').mousedown();
+			}
+			break;
+			
+			case KEY['ENTER']:
 			if (!$('#btn_next').is('.ui-state-active')) {
 				$('#btn_next').mousedown();
 			}
@@ -701,11 +728,10 @@ $(function() {
 			$('#btn_mute').click();
 			break;
 			
-			case 13:
+			case KEY['ENTER']:
 			break;
 			
-			case 57: // '9'
-			$('#btn_power').click();
+			case KEY['9']:
 			break;
 			
 			case 93: // ']'
