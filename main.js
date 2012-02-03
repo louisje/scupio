@@ -122,18 +122,28 @@ var browserDetection = {
 
 // TODO: analytics
 // TODO: preload
+// TODO: chromeless player
 
 var KEY = {
 	'ENTER': 13,
-	'-':     45,
+	'-':     189,
 	'0':     48,
 	'9':     57,
-	'=':     61,
+	'=':     187,
 	'[':     91,
 	']':     93,
 	'p':     112,
 	'{':     123,
 	'}':     125
+};
+
+var YT = {
+	'UNSTART':  -1,
+	'ENDED':     0,
+	'PLAYING':   1,
+	'PAUSED':    2,
+	'BUFFERING': 3,
+	'CUED':     5
 };
 
 var blank$ = {
@@ -173,7 +183,6 @@ var blank$ = {
 		$('#blank_screen')
 		  .css('top', pos.top)
 		  .css('left', pos.left)
-		  .html('<div><h2>電源開啟中</h2></div>')
 		  .show();
 	}
 };
@@ -281,7 +290,7 @@ var y$ = {
 			var timeoutId = setTimeout(function() {
 				if (y$.player) {
 					var state = y$.player.getPlayerState();
-					if (state == 5 || state == -1) {
+					if (state == YT['CUED'] || state == YT['UNSTART']) {
 						blank$.hide();
 					}
 				}
@@ -305,7 +314,7 @@ var y$ = {
 		//log('state change to ' + state);
 		switch(state) {
 			
-			case -1: // unstart
+			case YT['UNSTART']:
 			//log('unstart');
 			y$.buffering = 0;
 			var videoId = y$.getCurrentVideoId();
@@ -315,30 +324,30 @@ var y$ = {
 			}, 'json');
 			break;
 			
-			case 0: // ended
+			case YT['ENDED']:
 			log('ended');
 			blank$.show('本台播放完畢');
 			y$.setTubeWatched(y$.currentTube);
 			break;
 			
-			case 1: // playing
+			case YT['PLAYING']:
 			var videoId = y$.getCurrentVideoId();
 			y$.setVideoWatched(videoId);
 			blank$.hide();
 			break;
 			
-			case 2: // pause
+			case YT['PAUSED']:
 			log('... paused');
 			break;
 			
-			case 3: // buffering
+			case YT['BUFFERING']:
 			if (y$.buffering > 1) {
 				log('... buffering');
 			}
 			y$.buffering++;
 			break;
 			
-			case 5: // cued
+			case YT['CUED']:
 			log('... cued');
 			y$.onCue();
 			break;
@@ -419,6 +428,15 @@ var y$ = {
 		
 		log(feed.title.$t, true);
 		y$.cuePlaylist(feed.title.$t);
+	},
+	switchDemandMode: function() {
+		if (y$.ondemand) {
+			log('demand mode: OFF', true);
+			y$.ondemand = false;
+		} else {
+			log('demand mode: ON', true);
+			y$.ondemand = true;
+		}
 	},
 	cuePlaylist: function(title) {
 		if (y$.queued.length == 0) {
@@ -520,7 +538,7 @@ var y$ = {
 		
 		y$.initializing = true;
 		
-		blank$.init();
+		blank$.show('電源開啟中');
 		
 		// load watched list from cookie
 		var watchedList = $.cookie('watched');
@@ -567,6 +585,8 @@ $(function() {
 	scupio.init();
 	browserDetection.init();
 	
+	blank$.init();
+	
 	$('button').button();
 	
 	$('#btn_next').click(function() {
@@ -581,16 +601,23 @@ $(function() {
 		}
 	});
 	
+	$('#btn_next').mousedown(function() {
+		if (y$.player) {
+			var timeoutId = setTimeout(function() {
+				if ($('#btn_next').is('.ui-state-active')) {
+					y$.switchDemandMode();
+				}
+			}, 1000);
+			$('#btn_next').one('mouseup', function() {
+				clearTimeout(timeoutId);
+			});
+		}
+	});
+	
 	$('#btn_power').mousedown(function() {
 		var timeoutId = setTimeout(function() {
 			if ($('#btn_power').is('.ui-state-active')) {
-				if (y$.ondemand) {
-					log('demand mode: OFF', true);
-					y$.ondemand = false;
-				} else {
-					log('demand mode: ON', true);
-					y$.ondemand = true;
-				}
+				y$.switchDemandMode();
 			}
 		}, 1000);
 		$('#btn_power').one('mouseup', function() {
@@ -670,6 +697,27 @@ $(function() {
 			$('#btn_next').mouseup();
 			break;
 			
+			case KEY['0']:
+			if ($('#btn_mute').is('.ui-state-active')) {
+				$('#btn_mute').click();
+			}
+			$('#btn_mute').mouseup();
+			break;
+			
+			case KEY['-']:
+			if ($('#btn_lower').is('.ui-state-active')) {
+				$('#btn_lower').click();
+			}
+			$('#btn_lower').mouseup();
+			break;
+			
+			case KEY['=']:
+			if ($('#btn_louder').is('.ui-state-active')) {
+				$('#btn_louder').click();
+			}
+			$('#btn_louder').mouseup();
+			break;
+			
 			default:
 		}
 	});
@@ -689,6 +737,24 @@ $(function() {
 			}
 			break;
 			
+			case KEY['0']:
+			if (!$('#btn_mute').is('.ui-state-active')) {
+				$('#btn_mute').mousedown();
+			}
+			break;
+			
+			case KEY['-']:
+			if (!$('#btn_lower').is('.ui-state-active')) {
+				$('#btn_lower').mousedown();
+			}
+			break;
+			
+			case KEY['=']:
+			if (!$('#btn_louder').is('.ui-state-active')) {
+				$('#btn_louder').mousedown();
+			}
+			break;
+			
 			default:
 		}
 	});
@@ -696,18 +762,18 @@ $(function() {
 	$(document).keypress(function(event) {
 		var which = event.which;
 		switch(which) {
-			case 112: // 'p'
+			case KEY['p']:
 			if (y$.player) {
 				var player = y$.player;
 				var state = player.getPlayerState();
 				switch(state) {
-					case 1:
+					case YT['PLAYING']:
 					player.pauseVideo();
 					break;
 					
-					case -1:
-					case 2:
-					case 5:
+					case YT['UNSTART']:
+					case YT['PAUSED']:
+					case YT['CUED']:
 					player.playVideo();
 					break;
 					
@@ -716,16 +782,13 @@ $(function() {
 			}
 			break;
 			
-			case 61:
-			$('#btn_louder').click();
+			case 61: // '='
 			break;
 			
-			case 45:
-			$('#btn_lower').click();
+			case 45: // '-'
 			break;
 			
-			case 48:
-			$('#btn_mute').click();
+			case KEY['0']:
 			break;
 			
 			case KEY['ENTER']:
@@ -734,26 +797,26 @@ $(function() {
 			case KEY['9']:
 			break;
 			
-			case 93: // ']'
+			case KEY[']']:
 			if (y$.player) {
 				y$.player.nextVideo();
 			}
 			break;
 			
-			case 91: // '['
+			case KEY['[']:
 			if (y$.player) {
 				y$.player.previousVideo();
 			}
 			break;
 			
-			case 125: // '}'
+			case KEY['}']:
 			if (y$.player) {
 				var currentTime = y$.player.getCurrentTime();
 				y$.player.seekTo(currentTime + y$.seekInterval);
 			}
 			break;
 			
-			case 123: // {}'
+			case KEY['{']:
 			if (y$.player) {
 				var currentTime = y$.player.getCurrentTime();
 				y$.player.seekTo(currentTime - y$.seekInterval);
@@ -764,4 +827,5 @@ $(function() {
 			log('key pressed: ' + which);
 		}
 	});
+	
 });

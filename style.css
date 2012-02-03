@@ -33,19 +33,14 @@ button {
 	border: 1px black solid;
 }
 
-#ytplayer div, #blank_screen div {
+#blank_screen div {
 	text-align: center;
 	top:        45%;
 	position:   relative;
+	background-color: black;
 }
 
 #blank_screen {
 	position: absolute;
-}
-
-#ytplayer div, #blank_screen div {
-	top: 50%;
-	position: relative;
-	background-color: black;
 }
 
