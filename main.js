@@ -179,11 +179,9 @@ var blank$ = {
 	},
 	init: function() {
 		var pos = $('#ytplayer_holder').offset();
-		$('#blank_screen')
-		  .css('top', pos.top)
-		  .css('left', pos.left)
-		  .show();
-		
+		$('#blank_screen').css('top', pos.top).css('left', pos.left);
+		this.setBackground('tv.jpg');
+		this.show('電源己關閉');
 	}
 };
 
@@ -703,6 +701,7 @@ $(function() {
 			break;
 			
 			case KEY['-']:
+			case 109: // firefox
 			if ($('#btn_lower').is('.ui-state-active')) {
 				$('#btn_lower').click();
 			}
@@ -710,6 +709,7 @@ $(function() {
 			break;
 			
 			case KEY['=']:
+			case 61:
 			if ($('#btn_louder').is('.ui-state-active')) {
 				$('#btn_louder').click();
 			}
@@ -742,12 +742,14 @@ $(function() {
 			break;
 			
 			case KEY['-']:
+			case 109: // firefox
 			if (!$('#btn_lower').is('.ui-state-active')) {
 				$('#btn_lower').mousedown();
 			}
 			break;
 			
 			case KEY['=']:
+			case 61:
 			if (!$('#btn_louder').is('.ui-state-active')) {
 				$('#btn_louder').mousedown();
 			}
