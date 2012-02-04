@@ -12,6 +12,8 @@
 	float:       left;
 	margin:      7px;
 	white-space: nowrap;
+	font-size:   16px;
+	font-family: monospace;
 }
 
 #control_panel {
@@ -26,8 +28,8 @@ button {
 }
 
 #ytplayer_holder {
-	width:  720px;
-	height: 405px;
+	width:  800px;
+	height: 450px;
 	background-color: green;
 };
 
@@ -46,8 +48,8 @@ button {
 }
 
 #blank_screen {
-	width:    720px;
-	height:   405px;
+	width:    800px;
+	height:   450px;
 	top:      38;
 	left:     28;
 	position: absolute;

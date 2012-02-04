@@ -198,6 +198,7 @@ var y$ = {
 	watchedTubes:    [ ],
 	player:          null,
 	currentTube:     null,
+	currentVideoId:  null,
 	gonextgo:        false,
 	volume:          50,
 	buffering:       0,
@@ -315,11 +316,6 @@ var y$ = {
 			case YT['UNSTART']:
 			//log('unstart');
 			y$.buffering = 0;
-			var videoId = y$.getCurrentVideoId();
-			var url = 'http://gdata.youtube.com/feeds/api/videos/' + videoId + '?v=2&alt=json-in-script&callback=?';
-			$.get(url, function(data) {
-				log('video title: ' + data.entry.title.$t);
-			}, 'json');
 			break;
 			
 			case YT['ENDED']:
@@ -330,6 +326,13 @@ var y$ = {
 			
 			case YT['PLAYING']:
 			var videoId = y$.getCurrentVideoId();
+			if (videoId != y$.currentVideoId) {
+				y$.currentVideoId = videoId;
+				var url = 'http://gdata.youtube.com/feeds/api/videos/' + videoId + '?v=2&alt=json-in-script&callback=?';
+				$.get(url, function(data) {
+					log('video title: ' + data.entry.title.$t);
+				}, 'json');
+			}
 			y$.setVideoWatched(videoId);
 			blank$.hide();
 			break;
@@ -447,9 +450,12 @@ var y$ = {
 			y$.player.cuePlaylist(y$.queued);
 		} else {
 			log('initial a new player');
-			var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&controls=0&fs=1&rel=0&showinfo=0&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent(title), y$.queued.join(','));
+			var first    = y$.queued.shift();
+			var rest     = y$.queued.join(',');
+			var escTitle = encodeURIComponent(title);
+			var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&controls=0&fs=1&rel=0&showinfo=0&version=3&playerapiid=%s&playlist=%s', first, escTitle, rest);
 			if (y$.expertMode) {
-				url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent(title), y$.queued.join(','));
+				url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', first, escTitle, rest);
 			}
 			log(url);
 			var param = {
@@ -458,7 +464,7 @@ var y$ = {
 				wmode:             'opaque'
 			};
 			var attr = { 'id': 'ytplayer' };
-			swfobject.embedSWF(url, 'ytplayer', 720, 405, '11', null, null, param, attr);
+			swfobject.embedSWF(url, 'ytplayer', 800, 450, '11', null, null, param, attr);
 		}
 	},
 	fetchTubeList: function(curator, isUrl) {
@@ -720,6 +726,9 @@ $(function() {
 		}
 	});
 	
+	var keyLB = false;
+	var keyRB = false;
+	
 	$(document).keydown(function(event) {
 		var which = event.which;
 		switch(which) {
@@ -755,7 +764,48 @@ $(function() {
 			}
 			break;
 			
+			case 219: // '[' chrome
+			if (!keyLB && y$.player && y$.expertMode) {
+				keyLB = true;
+				var timeoutId = setTimeout(function() {
+					y$.player.previousVideo();
+					timeoutId = null;
+				}, 1000);
+				$(document).one('keyup', function(event) {
+					if (event.which == 219) {
+						if (timeoutId) {
+							clearTimeout(timeoutId);
+							var currentTime = y$.player.getCurrentTime();
+							y$.player.seekTo(currentTime - y$.seekInterval);
+						}
+						keyLB = false;
+					}
+				});
+			}
+			break;
+			
+			case 221: // ']' chrome
+			if (!keyRB && y$.player && y$.expertMode) {
+				keyRB = true;
+				var timeoutId = setTimeout(function() {
+					y$.player.nextVideo();
+					timeoutId = null;
+				}, 1000);
+				$(document).one('keyup', function(event) {
+					if (event.which == 221) {
+						if (timeoutId) {
+							clearTimeout(timeoutId);
+							var currentTime = y$.player.getCurrentTime();
+							y$.player.seekTo(currentTime + y$.seekInterval);
+						}
+						keyRB = false;
+					}
+				});
+			}
+			break;
+			
 			default:
+			log('keydown: ' + which);
 		}
 	});
 	
@@ -782,10 +832,10 @@ $(function() {
 			}
 			break;
 			
-			case 61: // '='
+			case 61: // '=' chrome keypress
 			break;
 			
-			case 45: // '-'
+			case 45: // '-' chrome keypress
 			break;
 			
 			case KEY['0']:
@@ -798,29 +848,9 @@ $(function() {
 			break;
 			
 			case KEY[']']:
-			if (y$.player) {
-				y$.player.nextVideo();
-			}
 			break;
 			
 			case KEY['[']:
-			if (y$.player) {
-				y$.player.previousVideo();
-			}
-			break;
-			
-			case KEY['}']:
-			if (y$.player) {
-				var currentTime = y$.player.getCurrentTime();
-				y$.player.seekTo(currentTime + y$.seekInterval);
-			}
-			break;
-			
-			case KEY['{']:
-			if (y$.player) {
-				var currentTime = y$.player.getCurrentTime();
-				y$.player.seekTo(currentTime - y$.seekInterval);
-			}
 			break;
 			
 			default:
