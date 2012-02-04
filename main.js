@@ -122,7 +122,6 @@ var browserDetection = {
 
 // TODO: analytics
 // TODO: preload
-// TODO: chromeless player
 
 var KEY = {
 	'ENTER': 13,
@@ -179,17 +178,18 @@ var blank$ = {
 		}
 	},
 	init: function() {
-		var pos = $('#ytplayer').offset();
+		var pos = $('#ytplayer_holder').offset();
 		$('#blank_screen')
 		  .css('top', pos.top)
 		  .css('left', pos.left)
 		  .show();
+		
 	}
 };
 
 var y$ = {
 	seekInterval:    47,
-	ondemand:        false,
+	expertMode:      false,
 	yesterday:       '2012-01-19T09:54:01.071Z',
 	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&published-min-not-support=%s',
 	bloggers:        [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'pts' ],
@@ -285,7 +285,7 @@ var y$ = {
 		
 		y$.player.setVolume(y$.volume);
 		
-		if (false && y$.ondemand) {
+		if (false && y$.expertMode) {
 			log('cued by demand mode');
 			var timeoutId = setTimeout(function() {
 				if (y$.player) {
@@ -429,14 +429,9 @@ var y$ = {
 		log(feed.title.$t, true);
 		y$.cuePlaylist(feed.title.$t);
 	},
-	switchDemandMode: function() {
-		if (y$.ondemand) {
-			log('demand mode: OFF', true);
-			y$.ondemand = false;
-		} else {
-			log('demand mode: ON', true);
-			y$.ondemand = true;
-		}
+	switchExpertMode: function() {
+		log('Expert Mode Turned ON', true);
+		y$.expertMode = true;
 	},
 	cuePlaylist: function(title) {
 		if (y$.queued.length == 0) {
@@ -454,7 +449,10 @@ var y$ = {
 			y$.player.cuePlaylist(y$.queued);
 		} else {
 			log('initial a new player');
-			var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent(title), y$.queued.join(','));
+			var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&controls=0&fs=1&rel=0&showinfo=0&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent(title), y$.queued.join(','));
+			if (y$.expertMode) {
+				url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', y$.queued.shift(), encodeURIComponent(title), y$.queued.join(','));
+			}
 			log(url);
 			var param = {
 				allowFullScreen:   true,
@@ -477,7 +475,7 @@ var y$ = {
 			for (var i = 0; i < entries.length && y$.tubes.length < y$.maxTubes; i++) {
 				var tube = entries[i].yt$playlistId.$t;
 				//var url = entries[i].content.src + '&alt=json-in-script&max-results=50';
-				if (($.inArray(tube, y$.watchedTubes) == -1 && $.inArray(tube, y$.tubes)) || y$.ondemand) {
+				if (($.inArray(tube, y$.watchedTubes) == -1 && $.inArray(tube, y$.tubes)) || y$.expertMode) {
 					//log('fetched tube: ' + tube);
 					y$.tubes.push(tube);
 				}
@@ -501,7 +499,7 @@ var y$ = {
 			
 			for (var i = 0; i < entries.length && y$.queued.length < y$.maxVideos; i++) {
 				var videoId = entries[i].media$group.yt$videoid.$t;
-				if ($.inArray(videoId, y$.watched) == -1 || y$.ondemand) {
+				if ($.inArray(videoId, y$.watched) == -1 || y$.expertMode) {
 					y$.queued.push(videoId);
 				}
 			}
@@ -605,7 +603,7 @@ $(function() {
 		if (y$.player) {
 			var timeoutId = setTimeout(function() {
 				if ($('#btn_next').is('.ui-state-active')) {
-					y$.switchDemandMode();
+					y$.switchExpertMode();
 				}
 			}, 1000);
 			$('#btn_next').one('mouseup', function() {
@@ -617,7 +615,7 @@ $(function() {
 	$('#btn_power').mousedown(function() {
 		var timeoutId = setTimeout(function() {
 			if ($('#btn_power').is('.ui-state-active')) {
-				y$.switchDemandMode();
+				y$.switchExpertMode();
 			}
 		}, 1000);
 		$('#btn_power').one('mouseup', function() {
@@ -676,7 +674,7 @@ $(function() {
 			
 			y$.tubes = [ ];
 			y$.poweroff = true;
-			y$.ondemand = false;
+			y$.expertMode = false;
 		}
 	});
 	

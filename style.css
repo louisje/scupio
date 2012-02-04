@@ -25,12 +25,17 @@ button {
 	margin: 5px;
 }
 
-#ytplayer, #blank_screen {
-	width:            720px;
-	height:           405px;
+#ytplayer_holder {
+	width:  720px;
+	height: 405px;
+	background-color: green;
+};
+
+#ytplayer {
+	width:            100%;
+	height:           100%;
 	color:            #888;
 	background-color: black;
-	border: 1px black solid;
 }
 
 #blank_screen div {
@@ -41,6 +46,12 @@ button {
 }
 
 #blank_screen {
+	width:    720px;
+	height:   405px;
+	top:      38;
+	left:     28;
 	position: absolute;
+	color:    #888;
+	background-color: black;
 }
 
