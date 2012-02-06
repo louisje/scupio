@@ -203,12 +203,13 @@ var y$ = {
 	preloaded:       { player: null, title: '', thubmnail: '' },
 	
 	// status
+	timerStart:      0,
 	buffering:       0,
+	bufferThreshold: 15,
 	initializing:    false,
 	poweroff:        true,
 	gonextgo:        false,
 	expertMode:      false,
-	preloading:      false,
 	
 	// constants
 	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&published-min-not-support=%s',
@@ -297,16 +298,17 @@ var y$ = {
 		
 		y$.player.setVolume(y$.volume);
 		
-		if (false && y$.expertMode) {
-			log('cued by demand mode');
+		if (y$.expertMode) {
+			log('cued by expert mode');
 			var timeoutId = setTimeout(function() {
 				if (y$.player) {
 					var state = y$.player.getPlayerState();
 					if (state == YT['CUED'] || state == YT['UNSTART']) {
-						blank$.hide();
+						//blank$.hide();
 					}
+					y$.player.playVideo();
 				}
-			}, 2000);
+			}, 1500);
 			$('#btn_next').one('mousedown', function() {
 				clearTimeout(timeoutId);
 			});
@@ -324,7 +326,7 @@ var y$ = {
 		y$.initializing = false;
 		
 		if (y$.preload) {
-			log('preload is ready');
+			log('preload player is ready');
 			y$.preloaded.player = player;
 			if (y$.gonextgo || !y$.player) {
 				log('[>>] auto forwarding (preload)');
@@ -364,12 +366,27 @@ var y$ = {
 				$.get(url, function(data) {
 					log('video title: ' + data.entry.title.$t);
 				}, 'json');
+				var interval = (new Date()).getTime() - y$.timerStart;
+				log('interval between switching channels: ' + interval + ' ms');
+				y$.timerStart = 0;
+			} else {
+				if (y$.timerStart > 0) {
+					y$.buffering += (new Date()).getTime() - y$.timerStart;
+					if (y$.buffering > (y$.bufferThreshold * 1000)) {
+						y$.buffering -= (y$.bufferThreshold * 1000);
+						log('buffering over ' + y$.bufferThreshold + ' seconds');
+						
+						// do something if buffering is too freqently
+					}
+					y$.timerStart = 0;
+				}
 			}
 			y$.setVideoWatched(videoId);
 			blank$.hide();
 			break;
 			
 			case YT['PAUSED']:
+			y$.timerStart = 0;
 			log('... paused');
 			break;
 			
@@ -377,7 +394,7 @@ var y$ = {
 			if (y$.buffering > 1) {
 				log('... buffering');
 			}
-			y$.buffering++;
+			y$.timerStart = (new Date()).getTime(); // start buffering timer
 			break;
 			
 			case YT['CUED']:
@@ -467,40 +484,78 @@ var y$ = {
 			blank$.show();
 		}
 		
-		y$.cuePlaylist(feed.title.$t);
+		y$.cuePlaylist((y$.expertMode && feed.yt$playlistId) ? feed.yt$playlistId.$t : null);
 	},
 	switchExpertMode: function() {
 		
 		log('Expert Mode Turned ON', true);
 		y$.expertMode = true;
+		y$.preload = false;
 	},
-	cuePlaylist: function(title) {
+	cuePlaylist: function(tube) {
 		
-		if (y$.queued.length == 0) {
+		if (tube) {
+			
+			log('cue tube (expert mode)');
+			
+		} else if (y$.queued.length == 0) {
+			
 			y$.setTubeWatched(y$.currentTube);
 			
 			y$.initializing = false;
 			
-			return y$.nextTube(y$.preload);
+			log('this tube has no videos!');
+			
+			return y$.nextTube();
+			
+		} else {
+			
+			log('play list count = ' + y$.queued.length);
 		}
-		log('play list count = ' + y$.queued.length);
 		
 		if (y$.player && !y$.preload) {
 			
-			y$.player.cuePlaylist(y$.queued);
+			if (tube) {
+				y$.player.cuePlaylist(tube);
+			} else {
+				y$.player.cuePlaylist(y$.queued);
+			}
+			
 		} else {
 			
 			log('initial a new player');
-			var first    = y$.queued.shift();
-			var rest     = y$.queued.join(',');
-			var escTitle = encodeURIComponent(title);
-			var url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&controls=0&fs=1&rel=0&autoplay=0&showinfo=0&version=3&playerapiid=%s&playlist=%s', first, escTitle, rest);
+			
+			var theme    = 'light';
+			var autoplay = 0;
+			var autohid = 0;
+			var rel      = 0;
+			var showinfo = 0;
+			var controls = 0;
 			if (y$.expertMode) {
-				url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&rel=1&autoplay=0&showinfo=1&theme=light&version=3&playerapiid=%s&playlist=%s', first, escTitle, rest);
+				var showinfo = 1;
+				var controls = 1;
 			}
+			
+			var url;
+			
+			if (tube) {
+				
+				url = sprintf('http://www.youtube.com/p/%s?autohide=1&enablejsapi=1&color=white&fs=1&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3', tube, controls, autoplay, showinfo, rel, theme);
+				
+			} else {
+				
+				var first = y$.queued.shift();
+				var rests = y$.queued.join(',');
+				
+				url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3', first, controls, autoplay, showinfo, rel, theme);
+				if (rests != '') {
+					url += '&playlist=' + rests;
+				}
+			}
+			
 			log(url);
 			var param = { allowFullScreen: true, allowScriptAccess: 'always', wmode: 'opaque' };
-			var attr = { };
+			var attr  = { };
 			swfobject.embedSWF(url, (y$.preload ? 'ytpreload' : 'ytplayer'), 800, 450, '10', null, null, param, attr);
 		}
 	},
@@ -549,26 +604,28 @@ var y$ = {
 			
 		}, 'json');
 	},
-	nextTube: function(fetchOnly) {
+	nextTube: function() {
 		
 		if (y$.initializing) {
 			log('Ooops!');
 			return;
 		}
 		
-		if (y$.preload && y$.preloaded.player) {
-			if (fetchOnly) {
-				log('fetch only');
-				y$.preloaded.player.detroy();
-				y$.preloaded.player = false;
-			} else {
+		y$.timerStart = (new Date()).getTime();
+		
+		if (y$.preload) {
+			if (y$.preloaded.player) {
 				// switch preload to player
 				
+				log('swtich to preloaded player');
 				log(y$.preloaded.title, true);
 				blank$.setBackground(y$.preloaded.thumbnail);
+				setTimeout(function() {
+					if (!y$.player || y$.player.getPlayerState() != YT['PLAYING']) {
+						blank$.show();
+					}
+				}, 250);
 				
-				
-				log('swtich preload');
 				if (y$.player) {
 					y$.player.destroy();
 				}
@@ -583,10 +640,12 @@ var y$ = {
 				y$.player.addEventListener('onError', 'y$.onError');
 				
 				y$.onCue();
+			} else {
+				log('fetch only');
 			}
 		} else {
 			if (y$.player) {
-				y$.player.pauseVideo();
+				y$.player.stopVideo();
 			}
 			blank$.setBackground();
 			blank$.show();
@@ -602,10 +661,11 @@ var y$ = {
 		y$.tubes.push(tube);
 		y$.queued = [ ];
 		y$.currentTube = tube;
-		if (tube.match(/^http:\/\//))
+		if (tube.match(/^http:\/\//)) {
 			y$.fetchEntryList(tube, true);
-		else
+		} else {
 			y$.fetchEntryList(tube);
+		}
 	},
 	init: function() {
 		
@@ -749,6 +809,7 @@ $(function() {
 			y$.tubes = [ ];
 			y$.poweroff = true;
 			y$.expertMode = false;
+			y$.preload = true;
 		}
 	});
 	
