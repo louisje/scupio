@@ -187,11 +187,11 @@ var blank$ = {
 var y$ = {
 	
 	// tube source
-	bloggers:        [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'pts' ],
+	bloggers:        [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'gorgeousspace' ],
 	curator:         'louisje',
 	
 	// data
-	tubes:           [ ],
+	tubes:           [ 'http://gdata.youtube.com/feeds/api/standardfeeds/TW/top_favorites?alt=json-in-script&v=2&max-results=50&time=this_week' ],
 	queued:          [ ],
 	watched:         [ ],
 	watchedTubes:    [ ],
@@ -199,7 +199,7 @@ var y$ = {
 	currentTube:     null,
 	currentVideoId:  null,
 	volume:          50,
-	yesterday:       '2012-01-19T09:54:01.071Z',
+	//yesterday:       '2012-01-19T09:54:01.071Z',
 	preloaded:       { player: null, title: '', thubmnail: '' },
 	
 	// status
@@ -212,7 +212,7 @@ var y$ = {
 	expertMode:      false,
 	
 	// constants
-	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&published-min-not-support=%s',
+	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&max-results=50',
 	
 	// config
 	seekInterval:    47,
@@ -229,7 +229,7 @@ var y$ = {
 		var blogger = y$.bloggers.shift();
 		if (blogger) {
 			log('pick up a blogger: ' + blogger);
-			return sprintf(y$.bloggerUrl, blogger, y$.yesterday);
+			return sprintf(y$.bloggerUrl, blogger);
 		}
 		return null;
 	},
@@ -299,7 +299,7 @@ var y$ = {
 		y$.player.setVolume(y$.volume);
 		
 		if (y$.expertMode) {
-			log('cued by expert mode');
+			//log('delayed cue by expert mode');
 			var timeoutId = setTimeout(function() {
 				if (y$.player) {
 					var state = y$.player.getPlayerState();
@@ -317,10 +317,11 @@ var y$ = {
 		
 		y$.player.playVideo();
 	},
-	onPlayerReady: function(player, title) {
+	onPlayerReady: function(player) {
 		
 		player.mute();
 		player.playVideo();
+		player.setPlaybackQuality('large');
 		player.pauseVideo();
 		
 		y$.initializing = false;
@@ -336,12 +337,15 @@ var y$ = {
 		} else {
 			log('player is ready');
 			y$.player = player;
-			//log(title, true);
+			y$.player.addEventListener('onPlaybackQualityChange', 'y$.onPlaybackQualityChange');
 			y$.player.addEventListener('onStateChange', 'y$.onStateChange');
 			y$.player.addEventListener('onError', 'y$.onError');
 			
 			y$.onCue();
 		}
+	},
+	onPlaybackQualityChange: function(quality) {
+		log('playback quality changed: ' + quality);
 	},
 	onStateChange: function(state) {
 		//log('state change to ' + state);
@@ -368,6 +372,7 @@ var y$ = {
 				}, 'json');
 				var interval = (new Date()).getTime() - y$.timerStart;
 				log('interval between switching channels: ' + interval + ' ms');
+				log('playback quality: ' + y$.player.getPlaybackQuality());
 				y$.timerStart = 0;
 			} else {
 				if (y$.timerStart > 0) {
@@ -377,6 +382,11 @@ var y$ = {
 						log('buffering over ' + y$.bufferThreshold + ' seconds');
 						
 						// do something if buffering is too freqently
+						if (y$.player.getPlaybackQulity() != 'small' &&
+						    $.inArray('small', y$.player.getAvailableQualityLevels())) {
+							
+							y$.player.setPlaybackQuality('small');
+						}
 					}
 					y$.timerStart = 0;
 				}
@@ -393,6 +403,12 @@ var y$ = {
 			case YT['BUFFERING']:
 			if (y$.buffering > 1) {
 				log('... buffering');
+				if (y$.player.getPlaybackQulity() != 'medium' &&
+				    y$.player.getPlaybackQulity() != 'small'  &&
+				    $.inArray('medium', y$.player.getAvailableQualityLevels())) {
+				
+					y$.player.setPlaybackQuality('medium');
+				}
 			}
 			y$.timerStart = (new Date()).getTime(); // start buffering timer
 			break;
@@ -412,8 +428,9 @@ var y$ = {
 		
 		switch(error) {
 			case 150:
-			blank$.show('本片因為含有版權內容，被版權擁有者封鎖');
 			y$.setVideoWatched(y$.getCurrentVideoId());
+			blank$.show('本片因為含有版權內容，被版權擁有者封鎖').delay(1500);
+			y$.player.nextVideo();
 			break;
 			
 			default:
@@ -496,7 +513,7 @@ var y$ = {
 		
 		if (tube) {
 			
-			log('cue tube (expert mode)');
+			log('(expert mode)');
 			
 		} else if (y$.queued.length == 0) {
 			
@@ -527,7 +544,7 @@ var y$ = {
 			
 			var theme    = 'light';
 			var autoplay = 0;
-			var autohid = 0;
+			var autohid  = 0;
 			var rel      = 0;
 			var showinfo = 0;
 			var controls = 0;
@@ -536,18 +553,19 @@ var y$ = {
 				var controls = 1;
 			}
 			
+			var playerId = y$.preload ? 'ytpreload' : 'ytplayer';
 			var url;
 			
 			if (tube) {
 				
-				url = sprintf('http://www.youtube.com/p/%s?autohide=1&enablejsapi=1&color=white&fs=1&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3', tube, controls, autoplay, showinfo, rel, theme);
+				url = sprintf('http://www.youtube.com/p/%s?autohide=1&enablejsapi=1&color=white&fs=1&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s', tube, controls, autoplay, showinfo, rel, theme, playerId);
 				
 			} else {
 				
 				var first = y$.queued.shift();
 				var rests = y$.queued.join(',');
 				
-				url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3', first, controls, autoplay, showinfo, rel, theme);
+				url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s', first, controls, autoplay, showinfo, rel, theme, playerId);
 				if (rests != '') {
 					url += '&playlist=' + rests;
 				}
@@ -556,7 +574,7 @@ var y$ = {
 			log(url);
 			var param = { allowFullScreen: true, allowScriptAccess: 'always', wmode: 'opaque' };
 			var attr  = { };
-			swfobject.embedSWF(url, (y$.preload ? 'ytpreload' : 'ytplayer'), 800, 450, '10', null, null, param, attr);
+			swfobject.embedSWF(url, playerId, 800, 450, '10', null, null, param, attr);
 		}
 	},
 	fetchTubeList: function(curator, isUrl) {
@@ -691,25 +709,22 @@ var y$ = {
 			y$.setVolume(volume);
 		}
 		
-		var now = new Date();
-		now.setDate(now.getDate() - 1);
-		y$.yesterday = now.toISOString();
+		//var now = new Date();
+		//now.setDate(now.getDate() - 1);
+		//y$.yesterday = now.toISOString();
 		
 		y$.fetchTubeList(y$.curator);
 		
 	}
 };
 
-var onYouTubePlayerReady = function(playlist) {
+var onYouTubePlayerReady = function(playerId) {
 	
-	//log('flash player is ready');
+	//log('flash is ready: ' + playerId);
 	
-	var player = $('#ytplayer').get(0);
-	if (y$.preload) {
-		player = $('#ytpreload').get(0);
-	}
+	var player = $('#' + playerId).get(0);
 	
-	y$.onPlayerReady(player, decodeURIComponent(playlist));
+	y$.onPlayerReady(player);
 };
 
 $(function() {
@@ -770,11 +785,11 @@ $(function() {
 	});
 	
 	$('#btn_louder').click(function() {
-		y$.setVolume(parseInt(y$.volume) + 10);
+		y$.setVolume(parseInt(y$.volume) + 5);
 	});
 	
 	$('#btn_lower').click(function() {
-		y$.setVolume(parseInt(y$.volume) - 10);
+		y$.setVolume(parseInt(y$.volume) - 5);
 	});
 	
 	$('#btn_power').button({
@@ -933,6 +948,9 @@ $(function() {
 					}
 				});
 			}
+			break;
+			
+			case 80: // 'p' chrome
 			break;
 			
 			default:
