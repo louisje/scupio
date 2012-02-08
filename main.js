@@ -187,11 +187,11 @@ var blank$ = {
 var y$ = {
 	
 	// tube source
+	tubes:           [ 'http://gdata.youtube.com/feeds/api/standardfeeds/TW/top_favorites?alt=json-in-script&v=2&max-results=50&time=this_week' ],
 	bloggers:        [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'gorgeousspace' ],
 	curator:         'louisje',
 	
 	// data
-	tubes:           [ 'http://gdata.youtube.com/feeds/api/standardfeeds/TW/top_favorites?alt=json-in-script&v=2&max-results=50&time=this_week' ],
 	queued:          [ ],
 	watched:         [ ],
 	watchedTubes:    [ ],
@@ -201,6 +201,7 @@ var y$ = {
 	volume:          50,
 	//yesterday:       '2012-01-19T09:54:01.071Z',
 	preloaded:       { player: null, title: '', thubmnail: '' },
+	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&max-results=50',
 	
 	// status
 	timerStart:      0,
@@ -211,10 +212,8 @@ var y$ = {
 	gonextgo:        false,
 	expertMode:      false,
 	
-	// constants
-	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&max-results=50',
-	
 	// config
+	preload:         true,
 	seekInterval:    47,
 	maxVideos:       15,
 	maxTubes:        35,
@@ -223,7 +222,6 @@ var y$ = {
 	maxWatched:      200,
 	keepTubes:       30,
 	keepVideos:      7,
-	preload:         true,
 	
 	getOneBlogger: function() {
 		var blogger = y$.bloggers.shift();
@@ -542,39 +540,41 @@ var y$ = {
 			
 			log('initial a new player');
 			
-			var theme    = 'light';
-			var autoplay = 0;
-			var autohid  = 0;
-			var rel      = 0;
-			var showinfo = 0;
-			var controls = 0;
+			var theme      = 'dark';
+			var color      = 'white';
+			var autoplay   = 0;
+			var autohid    = 0;
+			var rel        = 0;
+			var showinfo   = 0;
+			var controls   = 0;
+			var fullscreen = 0;
 			if (y$.expertMode) {
 				var showinfo = 1;
 				var controls = 1;
 			}
 			
 			var playerId = y$.preload ? 'ytpreload' : 'ytplayer';
-			var url;
+			var swfUrl = 'http://www.youtube.com/%s/%s?autohide=1&enablejsapi=1&color=%s&fs=%d&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s';
 			
 			if (tube) {
 				
-				url = sprintf('http://www.youtube.com/p/%s?autohide=1&enablejsapi=1&color=white&fs=1&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s', tube, controls, autoplay, showinfo, rel, theme, playerId);
+				swfUrl = sprintf(swfUrl, 'p', tube, color, controls, fullscreen, autoplay, showinfo, rel, theme, playerId);
 				
 			} else {
 				
-				var first = y$.queued.shift();
+				var lead = y$.queued.shift();
 				var rests = y$.queued.join(',');
 				
-				url = sprintf('http://www.youtube.com/v/%s?autohide=1&enablejsapi=1&color=white&fs=1&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s', first, controls, autoplay, showinfo, rel, theme, playerId);
+				swfUrl = sprintf(swfUrl, 'v', lead, color, controls, fullscreen, autoplay, showinfo, rel, theme, playerId);
 				if (rests != '') {
-					url += '&playlist=' + rests;
+					swfUrl += '&playlist=' + rests;
 				}
 			}
 			
-			log(url);
+			log(swfUrl);
 			var param = { allowFullScreen: true, allowScriptAccess: 'always', wmode: 'opaque' };
 			var attr  = { };
-			swfobject.embedSWF(url, playerId, 800, 450, '10', null, null, param, attr);
+			swfobject.embedSWF(swfUrl, playerId, 800, 450, '10', null, null, param, attr);
 		}
 	},
 	fetchTubeList: function(curator, isUrl) {

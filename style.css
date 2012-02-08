@@ -1,7 +1,24 @@
+body {
+	margin:     0px;
+	background: black;
+}
 
 .widget {
 	float: left;
 	margin: 5px;
+}
+
+.tv-widget {
+	height:     100%;
+	width:      100%;
+	background: black;
+	margin:     0px;
+	padding:    0px;
+}
+
+.tv-holder {
+	margin: auto;
+	padding: 40px;
 }
 
 #lcd_screen {
@@ -17,10 +34,10 @@
 }
 
 #control_panel {
-	margin-top:       10px;
-	height:           50px;
-	overflow:         hidden;
-	background-color: #ccc;
+	margin:     auto;
+	height:     50px;
+	overflow:   hidden;
+    max-width:  800px;
 }
 
 button {
@@ -28,33 +45,36 @@ button {
 }
 
 #ytplayer_holder {
-	width:  800px;
-	height: 450px;
-	background-color: green;
-	overflow: hidden;
+	margin:     40px auto 40px auto;
+	width:      800px;
+	height:     450px;
+	overflow:   hidden;
 };
 
 #ytplayer {
 	width:      100%;
 	height:     100%;
 	color:      #888;
-	background-color: black;
+	margin:     20px auto 50px auto;
 }
 
 #blank_screen div {
 	text-align: center;
-	top:        45%;
+	top:        325px;
 	position:   relative;
-	background-color: black;
+	background: black;
+	width:      200px;
+	margin:     auto;
 }
 
 #blank_screen {
-	width:    800px;
-	height:   450px;
-	top:      38;
-	left:     28;
-	position: absolute;
-	color:    #888;
-	background-color: black;
+	width:      800px;
+	height:     450px;
+	top:        38;
+	left:       28;
+	position:   absolute;
+	color:      #888;
+	background: black url(tv.jpg) center no-repeat;
+	display:    none;
 }
 

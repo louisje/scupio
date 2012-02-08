@@ -19,7 +19,7 @@
 <meta property="og:description" content="According to what web sites you have visited"/>
 <meta property="og:image" content="http://www.realtytrac.com/Home-Resources/Images/AnalyzeForeclosureTrends.jpg"/>
 
-<link type="text/css" rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/start/jquery-ui.css"/>
+<link type="text/css" rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/ui-darkness/jquery-ui.css"/>
 <link type="text/css" rel="stylesheet" href="/louis/scupio/style.css"/>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.0/jquery.js"></script>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.js"></script>
@@ -43,12 +43,11 @@
 </script>
 </head>
 <body>
-<div class="widget" style="width:750px">
-  <fieldset>
-    <legend>電視機</legend>
+<div class="tv-widget">
+  <div class="tv-holder">
     <div id="ytplayer_holder">
       <div id="ytplayer"></div>
-      <div id="ytpreload" style="display:none"></div>
+      <div id="ytpreload"></div>
     </div>
     <div id="blank_screen"></div>
     <div id="control_panel" class="ui-widget-header ui-corner-all">
@@ -59,16 +58,16 @@
       <button id="btn_louder"><small>大聲</small></button>
       <button id="btn_next"><small>下一台</small></button>
     </div>
-  </fieldset>
+  </div>
 </div>
-<div style="clear:both;height:10px"></div>
-<div class="widget" style="width:480px">
+<div style="clear:both;height:10px;display:none"></div>
+<div class="widget" style="width:480px;display:none">
   <fieldset>
     <legend>跟據 SCUPIO 資料顯示你喜歡</legend>
     <div id="container">Loading ...</div>
   </fieldset>
 </div>
-<div class="widget" style="width:265px">
+<div class="widget" style="width:265px;display:none">
   <fieldset>
     <legend>Misc.</legend>
     
