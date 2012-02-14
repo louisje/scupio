@@ -187,12 +187,12 @@ var blank$ = {
 var y$ = {
 	
 	// tube source
-	tubes:           [ 'http://gdata.youtube.com/feeds/api/standardfeeds/TW/top_favorites?alt=json-in-script&v=2&max-results=50&time=this_week' ],
-	bloggers:        [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'gorgeousspace' ],
+	tubes:           [ /* { 'id': 'xxXXXyyy', 'duration': 123, 'title': 'AAAABBBB' }, ... */ ],
+	//bloggers:        [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'gorgeousspace' ],
 	curator:         'louisje',
 	
 	// data
-	queued:          [ ],
+	queued:          [ /* { 'id': 'xxXXXyyy', 'duration': 123, 'title': 'AAAABBBB' }, ... */ ],
 	watched:         [ ],
 	watchedTubes:    [ ],
 	player:          null,
@@ -216,13 +216,14 @@ var y$ = {
 	preload:         true,
 	seekInterval:    47,
 	maxVideos:       15,
-	maxTubes:        35,
-	minTubes:        25,
+	maxTubes:        15,
+	minTubes:        25, // deprecated
 	maxWatchedTubes: 200,
 	maxWatched:      200,
-	keepTubes:       30,
-	keepVideos:      7,
+	keepTubes:       30, // days to keep watched tubes to stay watched
+	keepVideos:      7,  // days to keep watched video to stay watched
 	
+	/*
 	getOneBlogger: function() {
 		var blogger = y$.bloggers.shift();
 		if (blogger) {
@@ -231,6 +232,7 @@ var y$ = {
 		}
 		return null;
 	},
+	*/
 	getCurrentVideoId: function() {
 		if (y$.player) {
 			return y$.player.getVideoUrl().match(/v=([^&]+)/)[1];
@@ -249,7 +251,7 @@ var y$ = {
 		var newTubes = [ ];
 		while (y$.tubes.length > 0) {
 			var url = y$.tubes.shift();
-			if (url != tube)
+			if (url.id != tube)
 				newTubes.push(url);
 		}
 		y$.tubes = newTubes;
@@ -315,8 +317,14 @@ var y$ = {
 		
 		y$.player.playVideo();
 	},
-	onPlayerReady: function(player) {
+	onPlayerReady: function(player, payload) {
 		
+		if (payload != 'none') {
+			var start = payload.split('.');
+			log('play ' + start[0] + ' at ' + start[1] + ' second');
+			player.playVideoAt(parseInt(start[0]));
+			player.seekTo(parseInt(start[1]));
+		}
 		player.mute();
 		player.playVideo();
 		player.setPlaybackQuality('large');
@@ -436,11 +444,13 @@ var y$ = {
 	},
 	onTubeListFetched: function(feed) {
 		if (y$.tubes.length < y$.maxTubes && feed.link.length > 0) {
+			/*
 			var bloggerUrl = y$.getOneBlogger();
 			if (bloggerUrl) {
 				//log('blogger url: ' + bloggerUrl);
 				y$.tubes.push(bloggerUrl);
 			}
+			*/
 			for (var i = 0; i < feed.link.length; i++) {
 				var link = feed.link[i];
 				if (link.rel == 'next') {
@@ -499,19 +509,42 @@ var y$ = {
 			blank$.show();
 		}
 		
-		y$.cuePlaylist((y$.expertMode && feed.yt$playlistId) ? feed.yt$playlistId.$t : null);
+		if (feed.yt$playlistId) {
+			var duration = 0;
+			var offset = 0;
+			var start = 0;
+			for (var i = 0; i < y$.queued.length; i++) {
+				duration += parseInt(y$.queued[i].duration);
+			}
+			if (duration > 0) {
+				log('tube duration = ' + duration);
+				var time = ((new Date).getTime() / 1000);
+				offset = parseInt(time % duration);
+				for (var i = 0; i < y$.queued.length; i++) {
+					if (offset > parseInt(y$.queued[i].duration)) {
+						offset -= parseInt(y$.queued[i].duration);
+						start++;
+					} else {
+						break;
+					}
+				}
+			}
+			y$.cuePlaylist(feed.yt$playlistId.$t, start, offset);
+		} else {
+			y$.cuePlaylist();
+		}
+		
 	},
 	switchExpertMode: function() {
 		
 		log('Expert Mode Turned ON', true);
 		y$.expertMode = true;
-		y$.preload = false;
 	},
-	cuePlaylist: function(tube) {
+	cuePlaylist: function(tube, start, offset) {
 		
 		if (tube) {
 			
-			log('(expert mode)');
+			log('(tube mode) start = ' + start + ', offset = ' + offset);
 			
 		} else if (y$.queued.length == 0) {
 			
@@ -531,7 +564,7 @@ var y$ = {
 		if (y$.player && !y$.preload) {
 			
 			if (tube) {
-				y$.player.cuePlaylist(tube);
+				y$.player.cuePlaylist(tube, start, offset);
 			} else {
 				y$.player.cuePlaylist(y$.queued);
 			}
@@ -549,23 +582,24 @@ var y$ = {
 			var controls   = 0;
 			var fullscreen = 0;
 			if (y$.expertMode) {
-				var showinfo = 1;
-				var controls = 1;
+				showinfo = 1;
+				controls = 1;
 			}
 			
 			var playerId = y$.preload ? 'ytpreload' : 'ytplayer';
+			var payload = tube ? (start + '.' + offset) : 'none';
 			var swfUrl = 'http://www.youtube.com/%s/%s?autohide=1&enablejsapi=1&color=%s&fs=%d&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s';
 			
 			if (tube) {
 				
-				swfUrl = sprintf(swfUrl, 'p', tube, color, controls, fullscreen, autoplay, showinfo, rel, theme, playerId);
+				swfUrl = sprintf(swfUrl, 'p', tube, color, fullscreen, controls, autoplay, rel, showinfo, theme, payload);
 				
 			} else {
 				
 				var lead = y$.queued.shift();
 				var rests = y$.queued.join(',');
 				
-				swfUrl = sprintf(swfUrl, 'v', lead, color, controls, fullscreen, autoplay, showinfo, rel, theme, playerId);
+				swfUrl = sprintf(swfUrl, 'v', lead, color, fullscreen, controls, autoplay, rel, showinfo, theme, payload);
 				if (rests != '') {
 					swfUrl += '&playlist=' + rests;
 				}
@@ -578,7 +612,7 @@ var y$ = {
 		}
 	},
 	fetchTubeList: function(curator, isUrl) {
-		var source = 'http://gdata.youtube.com/feeds/api/users/' + curator + '/playlists?v=2&alt=json-in-script&max-results=5&callback=?';
+		var source = 'http://gdata.youtube.com/feeds/api/users/' + curator + '/playlists?v=2&alt=json-in-script&max-results=50&callback=?';
 		if (isUrl) {
 			source = curator + '&callback=?';
 		}
@@ -587,9 +621,13 @@ var y$ = {
 			var feed = data.feed;
 			var entries = feed.entry;
 			for (var i = 0; i < entries.length && y$.tubes.length < y$.maxTubes; i++) {
-				var tube = entries[i].yt$playlistId.$t;
+				var tube = {
+					'id':       entries[i].yt$playlistId.$t,
+					'duration': entries[i].media$group.yt$duration.seconds,
+					'title':    entries[i].title.$t
+				};
 				//var url = entries[i].content.src + '&alt=json-in-script&max-results=50';
-				if (($.inArray(tube, y$.watchedTubes) == -1 && $.inArray(tube, y$.tubes)) || y$.expertMode) {
+				if (($.inArray(tube.id, y$.watchedTubes) == -1 && $.inArray(tube.id, y$.tubes)) || y$.expertMode) {
 					//log('fetched tube: ' + tube);
 					y$.tubes.push(tube);
 				}
@@ -612,10 +650,12 @@ var y$ = {
 			//log(data);
 			
 			for (var i = 0; i < entries.length && y$.queued.length < y$.maxVideos; i++) {
-				var videoId = entries[i].media$group.yt$videoid.$t;
-				if ($.inArray(videoId, y$.watched) == -1 || y$.expertMode) {
-					y$.queued.push(videoId);
-				}
+				var video = {
+					'id':       entries[i].media$group.yt$videoid.$t,
+					'duration': entries[i].media$group.yt$duration.seconds,
+					'title':    entries[i].title.$t
+				};
+				y$.queued.push(video);
 			}
 			
 			y$.onEntryListFetched(feed);
@@ -675,14 +715,14 @@ var y$ = {
 			log('no tube!');
 		}
 		var tube = y$.tubes.shift();
-		log('tube = ' + tube);
+		log('tube id = ' + tube.id);
 		y$.tubes.push(tube);
 		y$.queued = [ ];
-		y$.currentTube = tube;
-		if (tube.match(/^http:\/\//)) {
-			y$.fetchEntryList(tube, true);
+		y$.currentTube = tube.id;
+		if (tube.id.match(/^http:\/\//)) {
+			y$.fetchEntryList(tube.id, true);
 		} else {
-			y$.fetchEntryList(tube);
+			y$.fetchEntryList(tube.id);
 		}
 	},
 	init: function() {
@@ -718,13 +758,13 @@ var y$ = {
 	}
 };
 
-var onYouTubePlayerReady = function(playerId) {
+var onYouTubePlayerReady = function(payload) {
 	
 	//log('flash is ready: ' + playerId);
 	
-	var player = $('#' + playerId).get(0);
+	var player = $('#' + (y$.preload ? 'ytpreload' : 'ytplayer')).get(0);
 	
-	y$.onPlayerReady(player);
+	y$.onPlayerReady(player, payload);
 };
 
 $(function() {
