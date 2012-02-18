@@ -121,6 +121,10 @@ var browserDetection = {
 };
 
 // TODO: analytics
+// TODO: when to set tube as watched
+// TODO: tube last watch (still goes wrong)
+// TODO: nextTube more faster
+// TODO: stwiching timer
 
 var KEY = {
 	'ENTER': 13,
@@ -177,36 +181,52 @@ var blank$ = {
 		}
 	},
 	init: function() {
+		
 		var pos = $('#ytplayer_holder').offset();
-		$('#blank_screen').css('top', pos.top).css('left', pos.left);
+		var width = $('#ytplayer_holder').width();
+		var height = $('#ytplayer_holder').height();
+		
+		$('#blank_screen')
+		  .css('top', pos.top)
+		  .css('left', pos.left)
+		  .height(height)
+		  .width(width);
+		
 		this.setBackground('tv.jpg');
 		this.show('電源己關閉');
+		
+		$('#blank_screen').click(function() {
+			var event = $.Event('keypress');
+			event.which = KEY['p'];
+			$(this).trigger(event);
+		});
 	}
 };
 
 var y$ = {
 	
 	// tube source
-	tubes:           [ /* { 'id': 'xxXXXyyy', 'duration': 123, 'title': 'AAAABBBB' }, ... */ ],
+	tubes:           [ /* { 'seq': 0, 'id': 'xxXXXyyy', 'duration': 123, 'title': 'AAAABBBB' }, ... */ ],
 	//bloggers:        [ 'ttvnewsview', 'ctitv', 'TBSCTS', 'FTVCP', 'TVBS', 'newsebc', 'gorgeousspace' ],
 	curator:         'louisje',
 	
 	// data
+	seq:             1,
 	queued:          [ /* { 'id': 'xxXXXyyy', 'duration': 123, 'title': 'AAAABBBB' }, ... */ ],
 	watched:         [ ],
 	watchedTubes:    [ ],
+	now:             null, // time of power-on
 	player:          null,
-	currentTube:     null,
 	currentVideoId:  null,
+	currentTube:     { title: '', thumbnail: '', id: '', duration: 0 },
+	preloaded:       { title: '', thubmnail: '', id: '', duration: 0, player: null },
 	volume:          50,
-	//yesterday:       '2012-01-19T09:54:01.071Z',
-	preloaded:       { player: null, title: '', thubmnail: '' },
 	bloggerUrl:      'http://gdata.youtube.com/feeds/api/users/%s/uploads?v=2&alt=json-in-script&max-results=50',
 	
 	// status
 	timerStart:      0,
+	timerBuffering:  0,
 	buffering:       0,
-	bufferThreshold: 15,
 	initializing:    false,
 	poweroff:        true,
 	gonextgo:        false,
@@ -214,14 +234,17 @@ var y$ = {
 	
 	// config
 	preload:         true,
-	seekInterval:    47,
-	maxVideos:       15,
-	maxTubes:        15,
-	minTubes:        25, // deprecated
+	seekFactor:      10,
+	minSeek:         10,
+	maxVideos:       25,
+	maxTubes:        10,
+	minTubes:        8, // deprecated
 	maxWatchedTubes: 200,
 	maxWatched:      200,
 	keepTubes:       30, // days to keep watched tubes to stay watched
 	keepVideos:      7,  // days to keep watched video to stay watched
+	bufferThreshold: 15 * 1000, // micro second
+	savingThreshold: 10, // minutes
 	
 	/*
 	getOneBlogger: function() {
@@ -233,16 +256,19 @@ var y$ = {
 		return null;
 	},
 	*/
+	getTime: function() {
+		return (new Date()).getTime();
+	},
 	getCurrentVideoId: function() {
 		if (y$.player) {
 			return y$.player.getVideoUrl().match(/v=([^&]+)/)[1];
 		}
 		return null;
 	},
-	setTubeWatched: function(tube) {
+	setTubeWatched: function(tubeId) {
 		
-		if ($.inArray(tube, y$.watchedTubes) == -1 && !tube.match(/^http:\/\//)) {
-			y$.watchedTubes.push(tube);
+		if ($.inArray(tubeId, y$.watchedTubes) == -1 && !tubeId.match(/^http:\/\//)) {
+			y$.watchedTubes.push(tubeId);
 			if (y$.watchedTubes.length > y$.maxWatchedTubes) {
 				y$.watchedTubes.shift();
 			}
@@ -250,16 +276,16 @@ var y$ = {
 		}
 		var newTubes = [ ];
 		while (y$.tubes.length > 0) {
-			var url = y$.tubes.shift();
-			if (url.id != tube)
-				newTubes.push(url);
+			var shift = y$.tubes.shift();
+			if (shift.id != tubeId)
+				newTubes.push(shift);
 		}
 		y$.tubes = newTubes;
 		if (y$.tubes.length < y$.minTubes) {
 			log('fetch more tubes');
 			y$.fetchTubeList(y$.curator);
 		}
-		log('set tube to watched: ' + tube);
+		log('set tube to watched: ' + tubeId);
 	},
 	setVideoWatched: function(videoId) {
 		
@@ -285,6 +311,26 @@ var y$ = {
 		}
 		log('聲音大小：' + volume, true);
 	},
+	saveCurrentTubePosition: function() {
+		
+		if (!y$.player || !y$.timerStart) {
+			return;
+		}
+		
+		var duration = y$.getTime() - y$.timerStart;
+		var lastWatch = $.cookie(y$.currentTube.id);
+		
+		if (lastWatch || (duration > y$.savingThreshold * 60 * 1000)) {
+			log(y$.currentTube);
+			var start = y$.player.getPlaylistIndex();
+			var offset = parseInt(y$.player.getCurrentTime());
+			if (y$.currentTube.id != '') {
+				var value = start + '.' + offset;
+				log('save current tube position ' + value);
+				$.cookie(y$.currentTube.id, value, { expires: 30 });
+			}
+		}
+	},
 	onCue: function() {
 		
 		if (!y$.preload) {
@@ -298,34 +344,28 @@ var y$ = {
 		
 		y$.player.setVolume(y$.volume);
 		
-		if (y$.expertMode) {
-			//log('delayed cue by expert mode');
-			var timeoutId = setTimeout(function() {
-				if (y$.player) {
-					var state = y$.player.getPlayerState();
-					if (state == YT['CUED'] || state == YT['UNSTART']) {
-						//blank$.hide();
-					}
-					y$.player.playVideo();
-				}
-			}, 1500);
-			$('#btn_next').one('mousedown', function() {
-				clearTimeout(timeoutId);
-			});
-			return;
-		}
-		
 		y$.player.playVideo();
 	},
 	onPlayerReady: function(player, payload) {
 		
+		var tubeId = y$.currentTube.id;
+		if (y$.preload) {
+			tubeId = y$.preloaded.id
+		}
+		if (tubeId != '') {
+			var last = $.cookie(tubeId);
+			if (last) {
+				log('restore from last ' + last);
+				payload = last;
+			}
+		}
+		player.mute();
 		if (payload != 'none') {
 			var start = payload.split('.');
 			log('play ' + start[0] + ' at ' + start[1] + ' second');
-			player.playVideoAt(parseInt(start[0]));
-			player.seekTo(parseInt(start[1]));
+			player.playVideoAt(start[0]);
+			player.seekTo(start[1]);
 		}
-		player.mute();
 		player.playVideo();
 		player.setPlaybackQuality('large');
 		player.pauseVideo();
@@ -365,7 +405,7 @@ var y$ = {
 			case YT['ENDED']:
 			log('ended');
 			blank$.show('本台播放完畢');
-			y$.setTubeWatched(y$.currentTube);
+			y$.setTubeWatched(y$.currentTube.id);
 			break;
 			
 			case YT['PLAYING']:
@@ -376,34 +416,36 @@ var y$ = {
 				$.get(url, function(data) {
 					log('video title: ' + data.entry.title.$t);
 				}, 'json');
-				var interval = (new Date()).getTime() - y$.timerStart;
-				log('interval between switching channels: ' + interval + ' ms');
-				log('playback quality: ' + y$.player.getPlaybackQuality());
-				y$.timerStart = 0;
+				//var interval = (new Date()).getTime() - y$.timerStart;
+				//log('interval between switching channels: ' + interval + ' ms');
+				//log('playback quality: ' + y$.player.getPlaybackQuality());
+				y$.timerBuffering = 0;
+				y$.setVideoWatched(videoId);
 			} else {
-				if (y$.timerStart > 0) {
-					y$.buffering += (new Date()).getTime() - y$.timerStart;
-					if (y$.buffering > (y$.bufferThreshold * 1000)) {
-						y$.buffering -= (y$.bufferThreshold * 1000);
-						log('buffering over ' + y$.bufferThreshold + ' seconds');
+				if (y$.timerBuffering > 0) {
+					y$.buffering += y$.getTime() - y$.timerBuffering;
+					if (y$.buffering > y$.bufferThreshold) {
+						y$.buffering -= y$.bufferThreshold;
+						log('buffering over threshold seconds');
 						
 						// do something if buffering is too freqently
 						if (y$.player.getPlaybackQulity() != 'small' &&
 						    $.inArray('small', y$.player.getAvailableQualityLevels())) {
 							
+							log('set quality to small');
 							y$.player.setPlaybackQuality('small');
 						}
 					}
-					y$.timerStart = 0;
+					y$.timerBuffering = 0;
 				}
 			}
-			y$.setVideoWatched(videoId);
 			blank$.hide();
 			break;
 			
 			case YT['PAUSED']:
-			y$.timerStart = 0;
+			//y$.timerStart = 0;
 			log('... paused');
+			//blank$.show();
 			break;
 			
 			case YT['BUFFERING']:
@@ -413,16 +455,19 @@ var y$ = {
 				    y$.player.getPlaybackQulity() != 'small'  &&
 				    $.inArray('medium', y$.player.getAvailableQualityLevels())) {
 				
+					log('set quality to medium');
 					y$.player.setPlaybackQuality('medium');
 				}
 			}
-			y$.timerStart = (new Date()).getTime(); // start buffering timer
+			y$.timerBuffering = y$.getTime(); // start buffering timer
 			break;
 			
 			case YT['CUED']:
 			log('... cued');
 			y$.initializing = false;
-			y$.onCue();
+			if (!y$.preload) {
+				y$.onCue();
+			}
 			break;
 			
 			default:
@@ -460,6 +505,9 @@ var y$ = {
 			}
 		}
 		log('fetched tube = ' + y$.tubes.length)
+		//for (var i = 0; i < y$.tubes.length; i++) {
+		//	y$.tubes[i].seq = i + 1
+		//}
 		
 		y$.initializing = false;
 		
@@ -480,7 +528,7 @@ var y$ = {
 		log(feed);
 		log('entry list fetched');
 		
-		var thumbnail = feed.media$group ? feed.media$group.media$thumbnail[1].url : feed.entry[0].media$group.media$thumbnail[1].url;
+		var thumbnail = (feed.media$group && feed.media$group.media$thumbnail) ? feed.media$group.media$thumbnail[1].url : feed.entry[0].media$group.media$thumbnail[1].url;
 		
 		for (var i = 0; i < feed.link.length; i++) {
 			if (feed.link[i].rel == 'alternate') {
@@ -499,10 +547,26 @@ var y$ = {
 			}
 		}
 		
+		var duration = 0;
+		for (var i = 0; i < y$.queued.length; i++) {
+			duration += parseInt(y$.queued[i].duration);
+		}
+		log('video count = ' + y$.queued.length);
+		log('tube duration = ' + duration);
+		
 		if (y$.preload) {
+			
 			y$.preloaded.thumbnail = thumbnail;
-			y$.preloaded.title = feed.title.$t;
+			y$.preloaded.title     = feed.title.$t;
+			y$.preloaded.id        = (feed.yt$playlistId) ? feed.yt$playlistId.$t : '';
+			y$.preloaded.duration  = duration;
+			
 		} else {
+			
+			y$.currentTube.thumbnail = thumbnail;
+			y$.currentTube.title     = feed.title.$t;
+			y$.currentTube.id        = (feed.yt$playlistId) ? feed.yt$playlistId.$t : '';
+			y$.currentTube.duration  = duration;
 			
 			log(feed.title.$t, true);
 			blank$.setBackground(thumbnail);
@@ -510,16 +574,11 @@ var y$ = {
 		}
 		
 		if (feed.yt$playlistId) {
-			var duration = 0;
 			var offset = 0;
 			var start = 0;
-			for (var i = 0; i < y$.queued.length; i++) {
-				duration += parseInt(y$.queued[i].duration);
-			}
 			if (duration > 0) {
-				log('tube duration = ' + duration);
 				var time = ((new Date).getTime() / 1000);
-				offset = parseInt(time % duration);
+				offset = parseInt((time - y$.now) % duration);
 				for (var i = 0; i < y$.queued.length; i++) {
 					if (offset > parseInt(y$.queued[i].duration)) {
 						offset -= parseInt(y$.queued[i].duration);
@@ -529,7 +588,11 @@ var y$ = {
 					}
 				}
 			}
-			y$.cuePlaylist(feed.yt$playlistId.$t, start, offset);
+			if (start > 0 || offset > 0) {
+				y$.cuePlaylist(feed.yt$playlistId.$t, start, offset);
+			} else {
+				y$.cuePlaylist(feed.yt$playlistId.$t);
+			}
 		} else {
 			y$.cuePlaylist();
 		}
@@ -537,8 +600,13 @@ var y$ = {
 	},
 	switchExpertMode: function() {
 		
-		log('Expert Mode Turned ON', true);
-		y$.expertMode = true;
+		if (y$.expertMode) {
+			log('Expert Mode Turned OFF', true);
+			y$.expertMode = false;
+		} else {
+			log('Expert Mode Turned ON', true);
+			y$.expertMode = true;
+		}
 	},
 	cuePlaylist: function(tube, start, offset) {
 		
@@ -548,7 +616,11 @@ var y$ = {
 			
 		} else if (y$.queued.length == 0) {
 			
-			y$.setTubeWatched(y$.currentTube);
+			if (y$.preload) {
+				y$.setTubeWatched(y$.preloaded.id);
+			} else {
+				y$.setTubeWatched(y$.currentTube.id);
+			}
 			
 			y$.initializing = false;
 			
@@ -564,7 +636,11 @@ var y$ = {
 		if (y$.player && !y$.preload) {
 			
 			if (tube) {
-				y$.player.cuePlaylist(tube, start, offset);
+				if (start && offset) {
+					y$.player.cuePlaylist(tube, start, offset);
+				} else {
+					y$.player.cuePlaylist(tube);
+				}
 			} else {
 				y$.player.cuePlaylist(y$.queued);
 			}
@@ -576,39 +652,37 @@ var y$ = {
 			var theme      = 'dark';
 			var color      = 'white';
 			var autoplay   = 0;
-			var autohid    = 0;
+			var autohide   = 1;
 			var rel        = 0;
-			var showinfo   = 0;
+			var fullscreen = 1;
+			var showinfo   = 1;
 			var controls   = 0;
-			var fullscreen = 0;
-			if (y$.expertMode) {
-				showinfo = 1;
-				controls = 1;
-			}
 			
-			var playerId = y$.preload ? 'ytpreload' : 'ytplayer';
-			var payload = tube ? (start + '.' + offset) : 'none';
-			var swfUrl = 'http://www.youtube.com/%s/%s?autohide=1&enablejsapi=1&color=%s&fs=%d&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s';
+			var payload = (start || offset) ? (start + '.' + offset) : 'none';
+			var swfUrl = 'http://www.youtube.com/%s/%s?autohide=%d&enablejsapi=1&color=%s&fs=%d&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s';
 			
 			if (tube) {
 				
-				swfUrl = sprintf(swfUrl, 'p', tube, color, fullscreen, controls, autoplay, rel, showinfo, theme, payload);
+				swfUrl = sprintf(swfUrl, 'p', tube, autohide, color, fullscreen, controls, autoplay, rel, showinfo, theme, payload);
 				
 			} else {
 				
-				var lead = y$.queued.shift();
-				var rests = y$.queued.join(',');
+				var lead = y$.queued.shift().id;
+				var rests = [ ]; //y$.queued.join(',');
+				for (var i = 0; i < y$.queued.length; i++) {
+					rests.push(y$.queued[i].id);
+				}
 				
-				swfUrl = sprintf(swfUrl, 'v', lead, color, fullscreen, controls, autoplay, rel, showinfo, theme, payload);
-				if (rests != '') {
-					swfUrl += '&playlist=' + rests;
+				swfUrl = sprintf(swfUrl, 'v', lead, autohide, color, fullscreen, controls, autoplay, rel, showinfo, theme, payload);
+				if (rests.length > 0) {
+					swfUrl += '&playlist=' + rests.join(',');
 				}
 			}
 			
 			log(swfUrl);
 			var param = { allowFullScreen: true, allowScriptAccess: 'always', wmode: 'opaque' };
 			var attr  = { };
-			swfobject.embedSWF(swfUrl, playerId, 800, 450, '10', null, null, param, attr);
+			swfobject.embedSWF(swfUrl, (y$.preload ? 'ytpreload' : 'ytplayer'), 800, 450, '10', null, null, param, attr);
 		}
 	},
 	fetchTubeList: function(curator, isUrl) {
@@ -624,11 +698,12 @@ var y$ = {
 				var tube = {
 					'id':       entries[i].yt$playlistId.$t,
 					'duration': entries[i].media$group.yt$duration.seconds,
-					'title':    entries[i].title.$t
+					'title':    entries[i].title.$t,
+					'count':    entries[i].yt$countHint.$t
 				};
-				//var url = entries[i].content.src + '&alt=json-in-script&max-results=50';
-				if (($.inArray(tube.id, y$.watchedTubes) == -1 && $.inArray(tube.id, y$.tubes)) || y$.expertMode) {
-					//log('fetched tube: ' + tube);
+				if (($.inArray(tube.id, y$.watchedTubes) == -1 && tube.count <= y$.maxVideos ) || y$.expertMode) {
+					tube.seq = y$.seq++;
+					log(tube);
 					y$.tubes.push(tube);
 				}
 			}
@@ -669,7 +744,9 @@ var y$ = {
 			return;
 		}
 		
-		y$.timerStart = (new Date()).getTime();
+		y$.saveCurrentTubePosition();
+		
+		y$.timerStart = y$.getTime();
 		
 		if (y$.preload) {
 			if (y$.preloaded.player) {
@@ -693,6 +770,10 @@ var y$ = {
 				
 				y$.player = y$.preloaded.player;
 				y$.preloaded.player = null;
+				y$.currentTube.thumbnail = y$.preloaded.thumbnail;
+				y$.currentTube.title     = y$.preloaded.title;
+				y$.currentTube.id        = y$.preloaded.id;
+				y$.currentTube.duration  = y$.preloaded.duration;
 				
 				y$.player.addEventListener('onStateChange', 'y$.onStateChange');
 				y$.player.addEventListener('onError', 'y$.onError');
@@ -713,12 +794,13 @@ var y$ = {
 		
 		if (!y$.tubes.length) {
 			log('no tube!');
+			y$.initializing = false;
+			return;
 		}
 		var tube = y$.tubes.shift();
 		log('tube id = ' + tube.id);
 		y$.tubes.push(tube);
 		y$.queued = [ ];
-		y$.currentTube = tube.id;
 		if (tube.id.match(/^http:\/\//)) {
 			y$.fetchEntryList(tube.id, true);
 		} else {
@@ -748,6 +830,8 @@ var y$ = {
 		if (volume) {
 			y$.setVolume(volume);
 		}
+		
+		y$.now = parseInt((new Date()).getTime() / 1000);
 		
 		//var now = new Date();
 		//now.setDate(now.getDate() - 1);
@@ -853,9 +937,16 @@ $(function() {
 		} else if (y$.initializing) {
 			log('still initializing');
 		} else {
+			
+			y$.saveCurrentTubePosition();
+			
 			if (y$.player) {
 				y$.player.destroy();
 				y$.player = null;
+			}
+			if (y$.preloaded.player) {
+				y$.preloaded.player.destroy();
+				y$.preloaded.player = null;
 			}
 			
 			blank$.setBackground('tv.jpg');
@@ -865,6 +956,8 @@ $(function() {
 			y$.poweroff = true;
 			y$.expertMode = false;
 			y$.preload = true;
+			
+			$('#blank_screen').unbind();
 		}
 	});
 	
@@ -951,7 +1044,7 @@ $(function() {
 			break;
 			
 			case 219: // '[' chrome
-			if (!keyLB && y$.player && y$.expertMode) {
+			if (!keyLB && y$.player) {
 				keyLB = true;
 				var timeoutId = setTimeout(function() {
 					y$.player.previousVideo();
@@ -961,8 +1054,13 @@ $(function() {
 					if (event.which == 219) {
 						if (timeoutId) {
 							clearTimeout(timeoutId);
+							var seek = parseInt(y$.player.getDuration() / y$.seekFactor);
+							if (seek < y$.minSeek) {
+								seek = y$.minSeek;
+							}
 							var currentTime = y$.player.getCurrentTime();
-							y$.player.seekTo(currentTime - y$.seekInterval);
+							log('seek backward ' + seek + ' seconds');
+							y$.player.seekTo(currentTime - seek);
 						}
 						keyLB = false;
 					}
@@ -971,7 +1069,7 @@ $(function() {
 			break;
 			
 			case 221: // ']' chrome
-			if (!keyRB && y$.player && y$.expertMode) {
+			if (!keyRB && y$.player) {
 				keyRB = true;
 				var timeoutId = setTimeout(function() {
 					y$.player.nextVideo();
@@ -981,8 +1079,13 @@ $(function() {
 					if (event.which == 221) {
 						if (timeoutId) {
 							clearTimeout(timeoutId);
+							var seek = parseInt(y$.player.getDuration() / y$.seekFactor);
+							if (seek < y$.minSeek) {
+								seek = y$.minSeek;
+							}
 							var currentTime = y$.player.getCurrentTime();
-							y$.player.seekTo(currentTime + y$.seekInterval);
+							log('seek forward ' + seek + ' seconds');
+							y$.player.seekTo(currentTime + seek);
 						}
 						keyRB = false;
 					}
