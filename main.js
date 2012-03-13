@@ -435,7 +435,6 @@ var y$ = {
 			log('ended');
 			blank$.show('本台播放完畢');
 			y$.setTubeWatched(y$.currentTube.id);
-			//y$.switchExpertMode(true);
 			y$.now = parseInt((new Date()).getTime() / 1000);
 			break;
 			
@@ -907,7 +906,7 @@ $(function() {
 		if (y$.player) {
 			var timeoutId = setTimeout(function() {
 				if ($('#btn_next').is('.ui-state-active')) {
-					y$.switchExpertMode();
+					// long hold
 				}
 			}, 1000);
 			$('#btn_next').one('mouseup', function() {
@@ -919,7 +918,7 @@ $(function() {
 	$('#btn_power').mousedown(function() {
 		var timeoutId = setTimeout(function() {
 			if ($('#btn_power').is('.ui-state-active')) {
-				y$.switchExpertMode();
+					// long hold
 			}
 		}, 1000);
 		$('#btn_power').one('mouseup', function() {
