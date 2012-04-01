@@ -242,6 +242,7 @@ var y$ = {
 	preload:         false,
 	seekFactor:      10,
 	minSeek:         10,
+	maxSeek:         300,
 	maxVideos:       25,
 	maxTubes:        15,
 	minTubes:        13,
@@ -369,13 +370,13 @@ var y$ = {
 				return;
 			}
 			
-			player.mute();
-			player.playVideo();
-			player.setPlaybackQuality('large');
 			var last = $.cookie(y$.preloaded.id);
 			if (last) {
 				y$.jumpToWatchPoint(last, player);
 			}
+			player.mute();
+			player.playVideo();
+			player.setPlaybackQuality('large');
 			player.pauseVideo();
 			
 			log('preload player is ready');
@@ -388,13 +389,12 @@ var y$ = {
 			y$.player.addEventListener('onStateChange', 'y$.onStateChange');
 			y$.player.addEventListener('onError', 'y$.onError');
 			
-			player.playVideo();
-			player.setPlaybackQuality('large');
 			var last = $.cookie(y$.currentTube.id);
 			if (last) {
 				y$.jumpToWatchPoint(last);
 			}
 			
+			player.setPlaybackQuality('large');
 			log('player is ready');
 			y$.onCue();
 		}
@@ -1011,6 +1011,8 @@ $(function() {
 							var seek = parseInt(y$.player.getDuration() / y$.seekFactor);
 							if (seek < y$.minSeek) {
 								seek = y$.minSeek;
+							} else if (seek > y$.maxSeek) {
+								seek = y$.maxSeek;
 							}
 							var currentTime = y$.player.getCurrentTime();
 							log('seek backward ' + seek + ' seconds');
@@ -1036,6 +1038,8 @@ $(function() {
 							var seek = parseInt(y$.player.getDuration() / y$.seekFactor);
 							if (seek < y$.minSeek) {
 								seek = y$.minSeek;
+							} else if (seek > y$.maxSeek) {
+								seek = y$.maxSeek;
 							}
 							var currentTime = y$.player.getCurrentTime();
 							log('seek forward ' + seek + ' seconds');
