@@ -161,6 +161,9 @@ var blank$ = {
 		}
 	},
 	setBackground: function(thumbnail) {
+		
+		this.celebrate();
+		
 		if (thumbnail) {
 			$('#blank_screen')
 			  .css('background-image',    'url(' + thumbnail + ')')
@@ -181,7 +184,7 @@ var blank$ = {
 			}
 		}
 	},
-	init: function() {
+	celebrate: function() {
 		
 		var pos = $('#ytplayer_holder').offset();
 		var width = $('#ytplayer_holder').width();
@@ -192,6 +195,8 @@ var blank$ = {
 		  .css('left', pos.left)
 		  .height(height)
 		  .width(width);
+	},
+	init: function() {
 		
 		this.setBackground('tv.jpg');
 		this.show('電源己關閉');
