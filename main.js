@@ -120,6 +120,7 @@ var browserDetection = {
 	}
 };
 
+// TODO: nn-sdk.js
 // TODO: analytics
 // TODO: nextTube more faster
 // TODO: focus
@@ -612,14 +613,15 @@ var y$ = {
 			var autohide   = 1;
 			var rel        = 0;
 			var fullscreen = 1;
-			var showinfo   = 1;
+			var showinfo   = 0;
 			var controls   = 0;
 			
 			var payload = 'none';
-			var swfUrl = 'http://www.youtube.com/%s/%s?autohide=%d&enablejsapi=1&color=%s&fs=%d&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s';
+			var swfUrl = 'http://www.youtube.com/%s/%s?v=3&autohide=%d&enablejsapi=1&color=%s&fs=%d&controls=%d&rel=%d&autoplay=%d&showinfo=%d&theme=%s&version=3&playerapiid=%s';
 			
 			if (tube) {
 				
+                tube = tube.replace(/^PL/, '');
 				swfUrl = sprintf(swfUrl, 'p', tube, autohide, color, fullscreen, controls, autoplay, rel, showinfo, theme, payload);
 				
 			} else {
