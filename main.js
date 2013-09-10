@@ -136,7 +136,7 @@ var y$ = {
 	
 	// config
     debug:           false,
-	preload:         false,
+	preload:         true,
 	seekFactor:      10,
 	minSeek:         10,
 	maxSeek:         300,
@@ -715,6 +715,8 @@ var onPlayerReady = function(event) {
     y$.onPlayerReady(event.target);
 };
 
+var cast = null;
+
 nn.init(function($) {
 
     ytDeferred = $.Deferred();
@@ -723,6 +725,7 @@ nn.init(function($) {
 
         ytDeferred
         , nn.load([ 'http://www.youtube.com/iframe_api' ])
+        , nn.load([ 'https://www.gstatic.com/cast/js/receiver/1.0/cast_receiver.js' ])
         , nn.load([
             'http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/ui-darkness/jquery-ui.css',
             'http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.js',
@@ -736,7 +739,307 @@ nn.init(function($) {
             null
         ])
 
-    ]).then(main);
+    ]).then(function() {
+
+        cast = window.cast || { };
+        nn.log('cast');
+
+    }).then(function() { // UI
+
+        $('button').button();
+        $('#btn_power').button({
+            'icons': {
+                'primary': 'ui-icon-power'
+            },
+            'text': false
+        });
+        $('#btn_mute').button({
+            'icons': {
+                'primary': 'ui-icon-volume-off'
+            },
+            'text': false
+        });
+
+        $('#btn_next').click(function() {
+            
+            if (y$.initializing && y$.gonextgo) {
+                log('calmdown man');
+            } else if (y$.initializing) {
+                y$.gonextgo = true;
+            } else {
+                log('[->] user change tube');
+                y$.gonextgo = false;
+                y$.nextTube();
+            }
+        });
+        
+        $('#btn_next').mousedown(function() {
+            if (y$.player) {
+                var timeoutId = setTimeout(function() {
+                    if ($('#btn_next').is('.ui-state-active')) {
+                        // long hold
+                    }
+                }, 1000);
+                $('#btn_next').one('mouseup', function() {
+                    clearTimeout(timeoutId);
+                });
+            }
+        });
+        
+        $('#btn_power').mousedown(function() {
+            var timeoutId = setTimeout(function() {
+                if ($('#btn_power').is('.ui-state-active')) {
+                        // long hold
+                }
+            }, 1000);
+            $('#btn_power').one('mouseup', function() {
+                clearTimeout(timeoutId);
+            });
+        });
+        
+        $('#btn_mute').click(function() {
+            if (y$.player) {
+                if (y$.player.isMuted()) {
+                    y$.player.unMute();
+                    log('靜音己取消', true);
+                } else {
+                    y$.player.mute();
+                    log('靜音', true);
+                }
+            }
+        });
+        
+        $('#btn_louder').click(function() {
+            y$.setVolume(parseInt(y$.volume) + 5);
+        });
+        
+        $('#btn_lower').click(function() {
+            y$.setVolume(parseInt(y$.volume) - 5);
+        });
+        
+        $('#btn_power').click(function() {
+            if (y$.poweroff) {
+                y$.poweroff = false;
+                y$.init();
+            } else if (y$.initializing) {
+                log('still initializing');
+            } else {
+                
+                y$.tubes = [ ];
+                y$.poweroff = true;
+                
+                y$.saveCurrentTubePosition();
+                
+                if (y$.player) {
+                    y$.player.destroy();
+                    y$.player = null;
+                }
+                if (y$.preloaded.player) {
+                    y$.preloaded.player.destroy();
+                    y$.preloaded.player = null;
+                }
+                
+                blank$.setBackground('tv.jpg');
+                blank$.show('電源已關閉');
+                
+                $('#blank_screen').unbind();
+            }
+        });
+
+        $(document).keyup(function(event) {
+            var which = event.which;
+            switch(which) {
+                case KEY['9']:
+                if ($('#btn_power').is('.ui-state-active')) {
+                    $('#btn_power').click();
+                }
+                $('#btn_power').mouseup();
+                break;
+                
+                case KEY['ENTER']:
+                if ($('#btn_next').is('.ui-state-active')) {
+                    $('#btn_next').click();
+                }
+                $('#btn_next').mouseup();
+                break;
+                
+                case KEY['0']:
+                if ($('#btn_mute').is('.ui-state-active')) {
+                    $('#btn_mute').click();
+                }
+                $('#btn_mute').mouseup();
+                break;
+                
+                case KEY['-']:
+                case 109: // firefox
+                if ($('#btn_lower').is('.ui-state-active')) {
+                    $('#btn_lower').click();
+                }
+                $('#btn_lower').mouseup();
+                break;
+                
+                case KEY['=']:
+                case 61:
+                if ($('#btn_louder').is('.ui-state-active')) {
+                    $('#btn_louder').click();
+                }
+                $('#btn_louder').mouseup();
+                break;
+                
+                default:
+            }
+        });
+        
+        var keyLB = false;
+        var keyRB = false;
+        
+        $(document).keydown(function(event) {
+            var which = event.which;
+            switch(which) {
+                case KEY['9']:
+                if (!$('#btn_power').is('.ui-state-active')) {
+                    $('#btn_power').mousedown();
+                }
+                break;
+                
+                case KEY['ENTER']:
+                if (!$('#btn_next').is('.ui-state-active')) {
+                    $('#btn_next').mousedown();
+                }
+                break;
+                
+                case KEY['0']:
+                if (!$('#btn_mute').is('.ui-state-active')) {
+                    $('#btn_mute').mousedown();
+                }
+                break;
+                
+                case KEY['-']:
+                case 109: // firefox
+                if (!$('#btn_lower').is('.ui-state-active')) {
+                    $('#btn_lower').mousedown();
+                }
+                break;
+                
+                case KEY['=']:
+                case 61:
+                if (!$('#btn_louder').is('.ui-state-active')) {
+                    $('#btn_louder').mousedown();
+                }
+                break;
+                
+                case 219: // '[' chrome
+                if (!keyLB && y$.player) {
+                    keyLB = true;
+                    var timeoutId = setTimeout(function() {
+                        y$.player.previousVideo();
+                        timeoutId = null;
+                    }, 1000);
+                    $(document).one('keyup', function(event) {
+                        if (event.which == 219) {
+                            if (timeoutId) {
+                                clearTimeout(timeoutId);
+                                var seek = parseInt(y$.player.getDuration() / y$.seekFactor);
+                                if (seek < y$.minSeek) {
+                                    seek = y$.minSeek;
+                                } else if (seek > y$.maxSeek) {
+                                    seek = y$.maxSeek;
+                                }
+                                var currentTime = y$.player.getCurrentTime();
+                                log('seek backward ' + seek + ' seconds');
+                                y$.player.seekTo(currentTime - seek);
+                            }
+                            keyLB = false;
+                        }
+                    });
+                }
+                break;
+                
+                case 221: // ']' chrome
+                if (!keyRB && y$.player) {
+                    keyRB = true;
+                    var timeoutId = setTimeout(function() {
+                        y$.player.nextVideo();
+                        timeoutId = null;
+                    }, 1000);
+                    $(document).one('keyup', function(event) {
+                        if (event.which == 221) {
+                            if (timeoutId) {
+                                clearTimeout(timeoutId);
+                                var seek = parseInt(y$.player.getDuration() / y$.seekFactor);
+                                if (seek < y$.minSeek) {
+                                    seek = y$.minSeek;
+                                } else if (seek > y$.maxSeek) {
+                                    seek = y$.maxSeek;
+                                }
+                                var currentTime = y$.player.getCurrentTime();
+                                log('seek forward ' + seek + ' seconds');
+                                y$.player.seekTo(currentTime + seek);
+                            }
+                            keyRB = false;
+                        }
+                    });
+                }
+                break;
+                
+                case 80: // 'p' chrome
+                break;
+                
+                default:
+                log('keydown: ' + which);
+            }
+        });
+        
+        $(document).keypress(function(event) {
+            var which = event.which;
+            switch(which) {
+                case KEY['p']:
+                if (y$.player) {
+                    var player = y$.player;
+                    var state = player.getPlayerState();
+                    switch(state) {
+                        case YT['PLAYING']:
+                        player.pauseVideo();
+                        break;
+                        
+                        case YT['UNSTART']:
+                        case YT['PAUSED']:
+                        case YT['CUED']:
+                        player.playVideo();
+                        break;
+                        
+                        default:
+                    }
+                }
+                break;
+                
+                case 61: // '=' chrome keypress
+                break;
+                
+                case 45: // '-' chrome keypress
+                break;
+                
+                case KEY['0']:
+                break;
+                
+                case KEY['ENTER']:
+                break;
+                
+                case KEY['9']:
+                break;
+                
+                case KEY[']']:
+                break;
+                
+                case KEY['[']:
+                break;
+                
+                default:
+                log('key pressed: ' + which);
+            }
+        });
+
+    }).then(main);
 
 });
 
@@ -744,302 +1047,33 @@ var main = function() {
 
     nn.log('main()');
 
-    $('button').button();
-    $('#btn_power').button({
-        'icons': {
-            'primary': 'ui-icon-power'
-        },
-        'text': false
-    });
-    $('#btn_mute').button({
-        'icons': {
-            'primary': 'ui-icon-volume-off'
-        },
-        'text': false
-    });
-
 	blank$.init();
+
+    var castChannelHandler = new cast.receiverChannelHandler('Scupio');
+
+    castChannelHandler.addEventListener(
+        cast.receiver.Channel.EventType.MESSAGE,
+        function(event) {
+            nn.log('MESSAGE');
+            nn.log(event);
+        });
 	
-	$('#btn_next').click(function() {
-        
-		if (y$.initializing && y$.gonextgo) {
-			log('calmdown man');
-		} else if (y$.initializing) {
-			y$.gonextgo = true;
-		} else {
-			log('[->] user change tube');
-			y$.gonextgo = false;
-			y$.nextTube();
-		}
-	});
-	
-	$('#btn_next').mousedown(function() {
-		if (y$.player) {
-			var timeoutId = setTimeout(function() {
-				if ($('#btn_next').is('.ui-state-active')) {
-					// long hold
-				}
-			}, 1000);
-			$('#btn_next').one('mouseup', function() {
-				clearTimeout(timeoutId);
-			});
-		}
-	});
-	
-	$('#btn_power').mousedown(function() {
-		var timeoutId = setTimeout(function() {
-			if ($('#btn_power').is('.ui-state-active')) {
-					// long hold
-			}
-		}, 1000);
-		$('#btn_power').one('mouseup', function() {
-			clearTimeout(timeoutId);
-		});
-	});
-	
-	$('#btn_mute').click(function() {
-		if (y$.player) {
-			if (y$.player.isMuted()) {
-				y$.player.unMute();
-				log('靜音己取消', true);
-			} else {
-				y$.player.mute();
-				log('靜音', true);
-			}
-		}
-	});
-	
-	$('#btn_louder').click(function() {
-		y$.setVolume(parseInt(y$.volume) + 5);
-	});
-	
-	$('#btn_lower').click(function() {
-		y$.setVolume(parseInt(y$.volume) - 5);
-	});
-	
-	$('#btn_power').click(function() {
-		if (y$.poweroff) {
-			y$.poweroff = false;
-			y$.init();
-		} else if (y$.initializing) {
-			log('still initializing');
-		} else {
-			
-			y$.tubes = [ ];
-			y$.poweroff = true;
-			
-			y$.saveCurrentTubePosition();
-			
-			if (y$.player) {
-				y$.player.destroy();
-				y$.player = null;
-			}
-			if (y$.preloaded.player) {
-				y$.preloaded.player.destroy();
-				y$.preloaded.player = null;
-			}
-			
-			blank$.setBackground('tv.jpg');
-			blank$.show('電源已關閉');
-			
-			$('#blank_screen').unbind();
-		}
-	});
-	
-	$(document).keyup(function(event) {
-		var which = event.which;
-		switch(which) {
-			case KEY['9']:
-			if ($('#btn_power').is('.ui-state-active')) {
-				$('#btn_power').click();
-			}
-			$('#btn_power').mouseup();
-			break;
-			
-			case KEY['ENTER']:
-			if ($('#btn_next').is('.ui-state-active')) {
-				$('#btn_next').click();
-			}
-			$('#btn_next').mouseup();
-			break;
-			
-			case KEY['0']:
-			if ($('#btn_mute').is('.ui-state-active')) {
-				$('#btn_mute').click();
-			}
-			$('#btn_mute').mouseup();
-			break;
-			
-			case KEY['-']:
-			case 109: // firefox
-			if ($('#btn_lower').is('.ui-state-active')) {
-				$('#btn_lower').click();
-			}
-			$('#btn_lower').mouseup();
-			break;
-			
-			case KEY['=']:
-			case 61:
-			if ($('#btn_louder').is('.ui-state-active')) {
-				$('#btn_louder').click();
-			}
-			$('#btn_louder').mouseup();
-			break;
-			
-			default:
-		}
-	});
-	
-	var keyLB = false;
-	var keyRB = false;
-	
-	$(document).keydown(function(event) {
-		var which = event.which;
-		switch(which) {
-			case KEY['9']:
-			if (!$('#btn_power').is('.ui-state-active')) {
-				$('#btn_power').mousedown();
-			}
-			break;
-			
-			case KEY['ENTER']:
-			if (!$('#btn_next').is('.ui-state-active')) {
-				$('#btn_next').mousedown();
-			}
-			break;
-			
-			case KEY['0']:
-			if (!$('#btn_mute').is('.ui-state-active')) {
-				$('#btn_mute').mousedown();
-			}
-			break;
-			
-			case KEY['-']:
-			case 109: // firefox
-			if (!$('#btn_lower').is('.ui-state-active')) {
-				$('#btn_lower').mousedown();
-			}
-			break;
-			
-			case KEY['=']:
-			case 61:
-			if (!$('#btn_louder').is('.ui-state-active')) {
-				$('#btn_louder').mousedown();
-			}
-			break;
-			
-			case 219: // '[' chrome
-			if (!keyLB && y$.player) {
-				keyLB = true;
-				var timeoutId = setTimeout(function() {
-					y$.player.previousVideo();
-					timeoutId = null;
-				}, 1000);
-				$(document).one('keyup', function(event) {
-					if (event.which == 219) {
-						if (timeoutId) {
-							clearTimeout(timeoutId);
-							var seek = parseInt(y$.player.getDuration() / y$.seekFactor);
-							if (seek < y$.minSeek) {
-								seek = y$.minSeek;
-							} else if (seek > y$.maxSeek) {
-								seek = y$.maxSeek;
-							}
-							var currentTime = y$.player.getCurrentTime();
-							log('seek backward ' + seek + ' seconds');
-							y$.player.seekTo(currentTime - seek);
-						}
-						keyLB = false;
-					}
-				});
-			}
-			break;
-			
-			case 221: // ']' chrome
-			if (!keyRB && y$.player) {
-				keyRB = true;
-				var timeoutId = setTimeout(function() {
-					y$.player.nextVideo();
-					timeoutId = null;
-				}, 1000);
-				$(document).one('keyup', function(event) {
-					if (event.which == 221) {
-						if (timeoutId) {
-							clearTimeout(timeoutId);
-							var seek = parseInt(y$.player.getDuration() / y$.seekFactor);
-							if (seek < y$.minSeek) {
-								seek = y$.minSeek;
-							} else if (seek > y$.maxSeek) {
-								seek = y$.maxSeek;
-							}
-							var currentTime = y$.player.getCurrentTime();
-							log('seek forward ' + seek + ' seconds');
-							y$.player.seekTo(currentTime + seek);
-						}
-						keyRB = false;
-					}
-				});
-			}
-			break;
-			
-			case 80: // 'p' chrome
-			break;
-			
-			default:
-			log('keydown: ' + which);
-		}
-	});
-	
-	$(document).keypress(function(event) {
-		var which = event.which;
-		switch(which) {
-			case KEY['p']:
-			if (y$.player) {
-				var player = y$.player;
-				var state = player.getPlayerState();
-				switch(state) {
-					case YT['PLAYING']:
-					player.pauseVideo();
-					break;
-					
-					case YT['UNSTART']:
-					case YT['PAUSED']:
-					case YT['CUED']:
-					player.playVideo();
-					break;
-					
-					default:
-				}
-			}
-			break;
-			
-			case 61: // '=' chrome keypress
-			break;
-			
-			case 45: // '-' chrome keypress
-			break;
-			
-			case KEY['0']:
-			break;
-			
-			case KEY['ENTER']:
-			break;
-			
-			case KEY['9']:
-			break;
-			
-			case KEY[']']:
-			break;
-			
-			case KEY['[']:
-			break;
-			
-			default:
-			log('key pressed: ' + which);
-		}
-	});
-	
+    castChannelHandler.addEventListener(
+        cast.receiver.Channel.EventType.OPEN,
+        function(event) {
+            nn.log('OPEN');
+            nn.log(event);
+        });
+
+    castChannelHandler.addEventListener(
+        cast.receiver.Channel.EventType.CLOSE,
+        function(event) {
+            nn.log('CLOSE');
+            nn.log(event);
+        });
+
     setTimeout(function() {
         $('#btn_power').click();
     }, 3000);
+    
 };
